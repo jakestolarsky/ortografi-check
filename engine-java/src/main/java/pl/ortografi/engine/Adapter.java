@@ -107,6 +107,7 @@ public final class Adapter {
               .put("end", i.end())
               .put("ruleId", i.ruleId())
               .put("category", i.category())
+              .put("engineCategory", i.engineCategory())
               .put("issueType", i.issueType())
               .put("message", i.message());
       ArrayNode reps = o.putArray("replacements");

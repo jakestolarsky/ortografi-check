@@ -28,14 +28,16 @@ public final class LanguageToolChecker implements Checker {
     List<Issue> issues = new ArrayList<>(matches.size());
     for (RuleMatch m : matches) {
       // RuleMatch positions are Java String indexes, i.e. UTF-16 code units.
+      String engineCategory = m.getRule().getCategory().getId().toString();
+      String issueType = m.getRule().getLocQualityIssueType().toString();
       issues.add(
           new Issue(
               m.getFromPos(),
               m.getToPos(),
               m.getRule().getId(),
-              "TODO",
-              m.getRule().getCategory().getId().toString(),
-              m.getRule().getLocQualityIssueType().toString(),
+              CategoryMapper.map(engineCategory, issueType),
+              engineCategory,
+              issueType,
               m.getMessage(),
               List.copyOf(m.getSuggestedReplacements())));
     }
