@@ -3,6 +3,9 @@ import { Decoration, EditorView, WidgetType, keymap, type DecorationSet } from '
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import type { Issue } from '$lib/protocol';
 import type { CheckSession } from '$lib/checking/session';
+import { setDiagnostics, lintKeymap, type Diagnostic } from '@codemirror/lint';
+import { chordFromEvent, type CommandRegistry, type Platform } from '$lib/commands/registry';
+import type { EditorCommandContext } from './fix-command';
 
 /** Marks transactions whose text the session already knows (applied through CheckSession). */
 const fromSession = Annotation.define<boolean>();
@@ -60,8 +63,22 @@ const proseTheme = EditorView.theme({
   '.cm-delete.cm-issue-punctuation': { textDecorationColor: 'var(--issue-punctuation)', outlineColor: 'var(--issue-punctuation)' },
   '.cm-delete.cm-issue-spelling': { textDecorationColor: 'var(--issue-spelling)', outlineColor: 'var(--issue-spelling)' },
   '.cm-delete.cm-issue-grammar': { textDecorationColor: 'var(--issue-grammar)', outlineColor: 'var(--issue-grammar)' },
-  '.cm-insert-marker': { display: 'inline-block', width: '0', height: '1em', verticalAlign: 'text-bottom',
-    borderLeft: '2px solid var(--issue-punctuation)', margin: '0 -1px' },
+  // Zero-length insertion point (e.g. missing comma): a caret bar with a wedge on top, so it is
+  // visible without shifting text. Colour comes from the issue-category token.
+  '.cm-insert-marker': { display: 'inline-block', position: 'relative', width: '2px', height: '1.1em',
+    verticalAlign: 'text-bottom', margin: '0 -1px', backgroundColor: 'var(--issue-punctuation)',
+    borderRadius: '1px' },
+  '.cm-insert-marker::before': { content: '""', position: 'absolute', top: '-3px', left: '-3px',
+    borderLeft: '4px solid transparent', borderRight: '4px solid transparent',
+    borderTop: '4px solid var(--issue-punctuation)' },
+  '.cm-insert-marker.cm-issue-spelling': { backgroundColor: 'var(--issue-spelling)' },
+  '.cm-insert-marker.cm-issue-grammar': { backgroundColor: 'var(--issue-grammar)' },
+  '.cm-insert-marker.cm-issue-style, .cm-insert-marker.cm-issue-other': { backgroundColor: 'var(--issue-style)' },
+  // Our own decorations draw the issue; the lint layer only supplies popups with fix buttons.
+  '.cm-lintRange, .cm-lintPoint': { backgroundImage: 'none' },
+  '.cm-lintPoint:after': { display: 'none' },
+  '.cm-tooltip-lint, .cm-panel.cm-panel-lint': { backgroundColor: 'var(--surface-raised)', color: 'var(--text)' },
+  '.cm-diagnosticAction': { backgroundColor: 'var(--accent)', color: 'var(--accent-text)' },
 });
 
 export interface ProseEditor {
@@ -70,19 +87,48 @@ export interface ProseEditor {
   destroy(): void;
 }
 
-export function createProseEditor(opts: { parent: Element; session: CheckSession; label?: string }): ProseEditor {
-  const { session } = opts;
+const severity = (c: Issue['category']): Diagnostic['severity'] => (c === 'style' ? 'info' : c === 'grammar' ? 'warning' : 'error');
+
+/** Lint diagnostics whose suggestion buttons run the registry's apply-fix command. */
+export function issueDiagnostics(issues: readonly Issue[], session: CheckSession,
+  registry: CommandRegistry<EditorCommandContext> | undefined): Diagnostic[] {
+  return issues.map((i, issueIndex) => ({
+    from: i.start, to: i.end, severity: severity(i.category), message: i.message,
+    actions: registry ? i.replacements.map((r, fixIndex) => ({
+      name: r === '' ? 'Usuń' : r,
+      apply: (view: EditorView) => { registry.execute('issue.applyFix', { view, session, issueIndex, fixIndex }); },
+    })) : [],
+  }));
+}
+
+const platform = (): Platform => (typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform) ? 'mac' : 'other');
+
+export function createProseEditor(opts: { parent: Element; session: CheckSession; label?: string;
+  registry?: CommandRegistry<EditorCommandContext> }): ProseEditor {
+  const { session, registry } = opts;
   const view = new EditorView({
     parent: opts.parent,
     state: EditorState.create({
       doc: session.text,
       extensions: [
         history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        keymap.of([...defaultKeymap, ...historyKeymap, ...lintKeymap]),
+        EditorView.domEventHandlers({
+          keydown: (e, view) => {
+            if (!registry) return false;
+            const chord = chordFromEvent(e, platform());
+            if (!chord || !registry.dispatch(chord, ['editor'], { view, session })) return false;
+            e.preventDefault();
+            return true;
+          },
+        }),
         EditorView.lineWrapping,
         EditorView.contentAttributes.of({ lang: 'pl', spellcheck: 'false',
           'aria-label': opts.label ?? 'Tekst do sprawdzenia', 'aria-multiline': 'true' }),
         issueField,
+        // Like the underlines, popups never survive an edit: cleared until the next check.
+        EditorState.transactionExtender.of((tr) => (tr.docChanged
+          ? { effects: setDiagnostics(tr.startState, []).effects ?? [] } : null)),
         proseTheme,
         EditorView.updateListener.of((u) => {
           if (u.docChanged && !u.transactions.some((t) => t.annotation(fromSession))) {
@@ -95,7 +141,8 @@ export function createProseEditor(opts: { parent: Element; session: CheckSession
   const unsubscribe = session.subscribe((s) => {
     if (s.status === 'complete' && s.resultVersion === session.version
       && view.state.doc.toString() === session.text) {
-      view.dispatch({ effects: setIssues.of(s.issues) });
+      const tr = setDiagnostics(view.state, issueDiagnostics(s.issues, session, registry));
+      view.dispatch({ effects: ([setIssues.of(s.issues)] as StateEffect<unknown>[]).concat(tr.effects ?? []) });
     }
   });
   return { view, session, destroy() { unsubscribe(); view.destroy(); } };

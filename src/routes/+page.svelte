@@ -7,6 +7,11 @@
   import { connectEngine, statusLabel, type StatusSource } from '$lib/checking/engine-status';
   import type { EngineState } from '$lib/checking/tauri-engine';
   import { createProseEditor, type ProseEditor } from '$lib/editor/prose-editor';
+  import { CommandRegistry } from '$lib/commands/registry';
+  import { registerFixCommand, type EditorCommandContext } from '$lib/editor/fix-command';
+
+  const registry = new CommandRegistry<EditorCommandContext>();
+  registerFixCommand(registry);
 
   let host: HTMLDivElement;
   let checkState: CheckState | undefined = $state();
@@ -31,7 +36,7 @@
       if (!engine) return;
       const session = new CheckSession(engine, '');
       if ('retry' in engine) ctl = connectEngine(session, engine as unknown as StatusSource);
-      editor = createProseEditor({ parent: host, session });
+      editor = createProseEditor({ parent: host, session, registry });
       editor.view.focus();
       let lastVersion = session.version;
       cleanups.push(session.subscribe((s) => {
