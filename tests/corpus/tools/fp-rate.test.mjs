@@ -6,7 +6,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fpReport } from './fp-rate.mjs';
 import { reformFlags, reformMatchForAlert } from './reform-2026.mjs';
-import { rejectReason, splitSentences } from './build-clean-prose.mjs';
+import { rejectReason, splitSentences, checkWritten, wlLicense, WL_BOOKS, MIN_WRITTEN } from './build-clean-prose.mjs';
 import { parseJsonl } from './corpus-lib.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -80,19 +80,39 @@ test('builder filters: dialogue, archaic, short, verse-like, foreign; splitting 
 test('committed clean-prose files: NFC, unique, attributed, flags current, kept out of the scored corpus', () => {
   const root = join(here, '..', 'clean-prose');
   const seen = new Set();
-  for (const [dir, lic] of [['wikipedia', 'CC BY-SA 4.0'], ['wolnelektury', 'Public domain (Wolne Lektury)']]) {
+  for (const [dir, lic] of [['wikipedia', /^CC BY-SA 4\.0$/], ['wolnelektury', /^(CC BY-SA 3\.0 PL|CC BY-SA 4\.0|Free Art License 1\.3) \(Wolne Lektury\)$/]]) {
     const rows = parseJsonl(readFileSync(join(root, dir, 'sentences.jsonl'), 'utf8')).map((e) => e.value);
     assert.ok(readFileSync(join(root, dir, 'LICENSE'), 'utf8').length > 100);
     for (const r of rows) {
       assert.equal(r.text, r.text.normalize('NFC'), r.id);
       assert.ok(!seen.has(r.text), `duplicate ${r.id}`); seen.add(r.text);
-      assert.equal(r.license, lic, r.id);
+      assert.match(r.license, lic, r.id);
       assert.ok(r.url && r.source_title && r.author, r.id);
       if (dir === 'wikipedia') assert.ok(Number.isInteger(r.revision) && r.permalink.endsWith(`oldid=${r.revision}`), r.id);
-      else assert.match(r.edition, /(19[5-9]\d|20\d\d)$/, r.id);
+      else {
+        const slug = r.url.split('/').at(-2);
+        assert.equal(r.written, checkWritten(slug).written, r.id);
+        assert.ok(r.written >= 1950, r.id);
+      }
       assert.equal(rejectReason(r.text, { literary: dir === 'wolnelektury' }), null, r.id);
       assert.deepEqual(r.reform_2026, reformFlags(r.text), r.id);
     }
   }
   assert.ok(seen.size >= 3000 && seen.size <= 5000);
+});
+
+test('builder refuses Wolne Lektury books written before 1950 or with unknown writing year', () => {
+  assert.equal(MIN_WRITTEN, 1950);
+  for (const [slug, m] of Object.entries(WL_BOOKS)) assert.ok(m.written >= 1950 && m.note, slug);
+  // the 1879-1924 books of the first build had 1975-76 editions; edition year alone must not pass
+  assert.throws(() => checkWritten('przedwiosnie'), /not in WL_BOOKS/);
+  assert.throws(() => checkWritten('lalka-tom-pierwszy'), /not in WL_BOOKS/);
+  assert.equal(checkWritten('orlinski-ulica-conrada').written, 2023);
+});
+
+test('wlLicense accepts only CC BY-SA and Free Art License footers', () => {
+  assert.equal(wlLicense('Ten utwór jest udostępniony na licencji Licencja Wolnej Sztuki 1.3: http://artlibre.org/'), 'Free Art License 1.3 (Wolne Lektury)');
+  assert.equal(wlLicense('Ten utwór jest udostępniony na licencji Creative Commons Uznanie Autorstwa - Na Tych Samych Warunkach 3.0. PL'), 'CC BY-SA 3.0 PL (Wolne Lektury)');
+  assert.equal(wlLicense('Ten utwór jest w domenie publicznej.'), null);
+  assert.equal(wlLicense('Wszelkie prawa zastrzeżone.'), null);
 });

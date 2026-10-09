@@ -4,7 +4,7 @@
 // Usage: node build-clean-prose.mjs <raw-dir>
 //   <raw-dir>/wiki/a*.json  MediaWiki API responses (prop=extracts|revisions|info, formatversion=2)
 //   <raw-dir>/*.txt         Wolne Lektury plain-text downloads (https://wolnelektury.pl/media/book/txt/<slug>.txt)
-import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { reformFlags } from './reform-2026.mjs';
@@ -64,25 +64,60 @@ function fromWikipedia(rawDir, perArticle) {
   return rows;
 }
 
+// Every Wolne Lektury book used, with the year the work was ORIGINALLY written or first
+// published (not the edition year: a 1976 edition of an 1890 novel is still 19th-century
+// prose). The builder refuses any .txt not listed here and any year before 1950.
+export const WL_BOOKS = {
+  'andrzejewski-ciemnosci-kryja-ziemie': { written: 1957, note: 'first published 1957' },
+  'andrzejewski-miazga': { written: 1979, note: 'written 1960s-1970s, first published 1979 (NOWa)' },
+  'kijowski-dziecko-przez-ptaka-przyniesione': { written: 1968, note: 'first published 1968' },
+  'kijowski-listopadowy-wieczor': { written: 1972, note: 'essays, first published 1972' },
+  'wojdowski-chleb-rzucony-umarlym': { written: 1971, note: 'first published 1971' },
+  'papuzinska-wedrowcy': { written: 1988, note: 'first published 1988' },
+  'tulli-sny-i-kamienie': { written: 1995, note: 'first published 1995' },
+  'gliscinski-dyskursy-prawa-autorskiego': { written: 2015, note: 'first e-book edition 2015' },
+  'fiedorczuk-kazdy-snil-swoj-sen': { written: 2019, note: 'first published 2019' },
+  'rak-male-zwierzatka': { written: 2020, note: 'first published 2020' },
+  'szostak-poslowie': { written: 2021, note: 'first published 2021' },
+  'orlinski-ulica-conrada': { written: 2023, note: 'first published 2023' },
+};
+export const MIN_WRITTEN = 1950;
+
+/** Licence named in a Wolne Lektury .txt footer, or null when it is not an open licence we accept. */
+export function wlLicense(raw) {
+  if (/na licencji Creative Commons Uznanie Autorstwa - Na Tych Samych Warunkach 3\.0/iu.test(raw)) return 'CC BY-SA 3.0 PL (Wolne Lektury)';
+  if (/na licencji Creative Commons Uznanie autorstwa – Na tych samych warunkach 4\.0/iu.test(raw)) return 'CC BY-SA 4.0 (Wolne Lektury)';
+  if (/na licencji Licencja Wolnej Sztuki 1\.3/u.test(raw)) return 'Free Art License 1.3 (Wolne Lektury)';
+  return null;
+}
+
+/** Throws unless the book is listed with an original-writing year >= MIN_WRITTEN. */
+export function checkWritten(slug) {
+  const meta = WL_BOOKS[slug];
+  if (!meta) throw new Error(`${slug}: not in WL_BOOKS (original writing year unknown)`);
+  if (!(meta.written >= MIN_WRITTEN)) throw new Error(`${slug}: written ${meta.written}, before ${MIN_WRITTEN}`);
+  return meta;
+}
+
 function fromWolneLektury(rawDir, perBook) {
   const rows = [];
   for (const f of readdirSync(rawDir).filter((x) => x.endsWith('.txt')).sort()) {
+    const slug = f.replace(/\.txt$/, '');
+    const meta = checkWritten(slug);
     const raw = readFileSync(join(rawDir, f), 'utf8').replace(/\r\n/gu, '\n');
     const [body] = raw.split(/\n-----\n/u);
     const lines = body.split('\n');
     const author = clean(lines[0]);
-    const tom = /tom-pierwszy/.test(f) ? ', tom pierwszy' : /tom-drugi/.test(f) ? ', tom drugi' : '';
-    const title = clean(lines[2] ?? '') + tom;
+    const title = clean(lines[2] ?? '');
     const edition = clean((raw.match(/Tekst opracowany na podstawie: (.*)/u) ?? [])[1] ?? '');
-    const year = Number((edition.match(/(1[89]\d\d|20\d\d)\s*$/u) ?? [])[1]);
-    if (!(year >= 1950)) throw new Error(`${f}: edition not post-1950 (${edition})`);
-    if (!/Ten utwór jest w domenie publicznej/u.test(raw)) throw new Error(`${f}: not public domain`);
-    const paras = body.split(/\n\s*\n/u).slice(1).map((p) => clean(p.replace(/\n/gu, ' '))).filter((p) => p && !/^[—–-]/u.test(p));
+    const license = wlLicense(raw);
+    if (!license) throw new Error(`${f}: no accepted open licence`);
+    const paras = body.split(/\n\s*\n/u).slice(1).map((p) => clean(p.replace(/\n/gu, ' '))).filter((p) => p && !/^[—–-]/u.test(p) && !/^ISBN/u.test(p));
     let n = 0;
     for (const para of paras) for (const s of splitSentences(para)) {
       if (n >= perBook || rejectReason(s, { literary: true })) continue;
-      rows.push({ text: s, source_title: title, author, url: `https://wolnelektury.pl/katalog/lektura/${f.replace(/\.txt$/, '')}/`,
-        edition, license: 'Public domain (Wolne Lektury)' });
+      rows.push({ text: s, source_title: title, author, url: `https://wolnelektury.pl/katalog/lektura/${slug}/`,
+        written: meta.written, edition, license });
       n += 1;
     }
   }
@@ -99,7 +134,10 @@ export function main(argv) {
   const rawDir = argv[0];
   if (!rawDir) throw new Error('usage: build-clean-prose.mjs <raw-dir>');
   const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'clean-prose');
-  const sets = { wikipedia: finish(fromWikipedia(rawDir, 35), 'cp-wp'), wolnelektury: finish(fromWolneLektury(rawDir, 400), 'cp-wl') };
+  // Without <raw-dir>/wiki the committed Wikipedia set is kept unchanged (revisions drift).
+  const wikipedia = existsSync(join(rawDir, 'wiki')) ? finish(fromWikipedia(rawDir, 35), 'cp-wp')
+    : readFileSync(join(out, 'wikipedia', 'sentences.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  const sets = { wikipedia, wolnelektury: finish(fromWolneLektury(rawDir, 150), 'cp-wl') };
   const all = new Set();
   for (const [dir, rows] of Object.entries(sets)) {
     const kept = rows.filter((r) => (all.has(r.text) ? false : all.add(r.text)));

@@ -5,7 +5,7 @@ It is **not** part of the scored corpus: `score.mjs` and `validate.mjs` never re
 (they only read `tests/corpus/data/`). Format and rules: `../FORMAT.md`, "Clean-prose
 false-alarm set".
 
-Total: **4237 sentences** (Wikipedia 2504, Wolne Lektury 1733). Built on 2026-10-10 with
+Total: **4254 sentences** (Wikipedia 2504, Wolne Lektury 1750). Built on 2026-10-10 with
 `tools/build-clean-prose.mjs`.
 
 Each source keeps **its own folder and its own LICENSE**, so the share-alike terms of the
@@ -21,25 +21,34 @@ Wikipedia text stay isolated from everything else.
 * Fetched with the MediaWiki API (`action=query&prop=extracts|revisions|info&explaintext=1`,
   one article per request, revision id recorded).
 
-## `wolnelektury/`: Wolne Lektury, public domain (modernised post-1950 editions only)
+## `wolnelektury/`: Wolne Lektury, CC BY-SA 3.0 PL / Free Art License 1.3 (works written 1950 or later)
 
-* License: the works are in the public domain; see `wolnelektury/LICENSE`. Wolne Lektury's
-  footnotes and motifs (Free Art License 1.3) are **not** included. Source: Wolne Lektury,
-  Fundacja Wolne Lektury, https://wolnelektury.pl/.
-* Only books whose digital text is based on an edition from **1950 or later** (modern
-  orthography) are used; the builder refuses older ones. Sentences with archaic spelling (for
-  example `idjalny`, `Marja`, `é`, `ztąd`) are dropped, as are dialogue, quotations,
-  foreign-language sentences and verse-like lines.
+* License: per sentence (`license` field), see `wolnelektury/LICENSE`. Both licences are
+  share-alike and stay inside this folder. Source: Wolne Lektury, Fundacja Wolne Lektury,
+  https://wolnelektury.pl/. Footnotes and motifs are not included.
+* **Rule: the work must have been originally written or first published in 1950 or later.**
+  The edition year is not enough: the first build of this set used seven 1879-1924 novels
+  (Prus, Sienkiewicz, Żeromski) because it only checked their 1975-76 edition dates. The
+  builder now keeps a list of allowed books with their original year (`WL_BOOKS` in
+  `tools/build-clean-prose.mjs`), refuses any book not on it or written before 1950, records
+  that year in each line's `written` field, and accepts only CC BY-SA or Free Art License
+  footers. Dialogue, quotations, archaic spellings, foreign-language sentences and
+  verse-like lines are dropped; at most 150 sentences per book.
 
-| author | title | URL | edition the text is based on | sentences |
-|---|---|---|---|---|
-| Bolesław Prus | Kamizelka | https://wolnelektury.pl/katalog/lektura/kamizelka/ | Bolesław Prus, Nowele wybrane, Państwowy Instytut Wydawniczy, Warszawa 1976 | 93 |
-| Bolesław Prus | Katarynka | https://wolnelektury.pl/katalog/lektura/katarynka/ | Bolesław Prus, Katarynka, Państwowy Instytut Wydawniczy, wyd. 8, Warszawa 1975 | 162 |
-| Bolesław Prus | Lalka, tom drugi | https://wolnelektury.pl/katalog/lektura/lalka-tom-drugi/ | Bolesław Prus, Lalka, przedm. Henryk Markiewicz, PIW, wyd. 31, Warszawa 1975 | 400 |
-| Bolesław Prus | Lalka, tom pierwszy | https://wolnelektury.pl/katalog/lektura/lalka-tom-pierwszy/ | Bolesław Prus, Lalka, przedm. Henryk Markiewicz, PIW, wyd. 31, Warszawa 1975 | 400 |
-| Henryk Sienkiewicz | Janko Muzykant | https://wolnelektury.pl/katalog/lektura/janko-muzykant/ | Henryk Sienkiewicz, Pisma wybrane. Nowele, tom 1, Państwowy Instytut Wydawniczy, Warszawa, 1976 | 71 |
-| Henryk Sienkiewicz | Latarnik | https://wolnelektury.pl/katalog/lektura/latarnik/ | Henryk Sienkiewicz, Pisma wybrane. Nowele, tom 2, Państwowy Instytut Wydawniczy, Warszawa 1976 | 207 |
-| Stefan Żeromski | Przedwiośnie | https://wolnelektury.pl/katalog/lektura/przedwiosnie/ | Stefan Żeromski, Przedwiośnie, wyd. Czytelnik, Warszawa 1976 | 400 |
+| author | title | URL | written / first published | edition the text is based on | licence | sentences |
+|---|---|---|---|---|---|---|
+| Jerzy Andrzejewski | Ciemności kryją ziemię | https://wolnelektury.pl/katalog/lektura/andrzejewski-ciemnosci-kryja-ziemie/ | **1957** | Jerzy Andrzejewski, Ciemności kryją ziemię, Państwowy Instytut Wydawniczy, Warszawa 1957. | CC BY-SA 3.0 PL | 150 |
+| Andrzej Kijowski | Dziecko przez ptaka przyniesione | https://wolnelektury.pl/katalog/lektura/kijowski-dziecko-przez-ptaka-przyniesione/ | **1968** | Andrzej Kijowski, Dziecko przez ptaka przyniesione, Państwowy Instytut Wydawniczy, Warszawa 1968. | CC BY-SA 3.0 PL | 150 |
+| Bogdan Wojdowski | Chleb rzucony umarłym | https://wolnelektury.pl/katalog/lektura/wojdowski-chleb-rzucony-umarlym/ | **1971** | Bogdan Wojdowski, Chleb rzucony umarłym, Państwowy Instytut Wydawniczy, Warszawa 1971. | CC BY-SA 3.0 PL | 150 |
+| Andrzej Kijowski | Listopadowy wieczór | https://wolnelektury.pl/katalog/lektura/kijowski-listopadowy-wieczor/ | **1972** | Andrzej Kijowski, Listopadowy wieczór, Państwowy Instytut Wydawniczy, Warszawa 1972. | CC BY-SA 3.0 PL | 150 |
+| Jerzy Andrzejewski | Miazga | https://wolnelektury.pl/katalog/lektura/andrzejewski-miazga/ | **1979** | Jerzy Andrzejewski, Miazga, Niezależna Oficyna Wydawnicza, Warszawa 1979. | CC BY-SA 3.0 PL | 150 |
+| Joanna Papuzińska | Wędrowcy | https://wolnelektury.pl/katalog/lektura/papuzinska-wedrowcy/ | **1988** | Joanna Papuzińska, Wędrowcy, Nasza Księgarnia, Warszawa 1988. | Free Art License 1.3 | 150 |
+| Magdalena Tulli | Sny i kamienie | https://wolnelektury.pl/katalog/lektura/tulli-sny-i-kamienie/ | **1995** | Magdalena Tulli, Sny i kamienie, 2019, wyd. II. | Free Art License 1.3 | 150 |
+| Konrad Gliściński | Wszystkie prawa zastrzeżone | https://wolnelektury.pl/katalog/lektura/gliscinski-dyskursy-prawa-autorskiego/ | **2015** | (not stated; first e-book edition 2015) | CC BY-SA 3.0 PL | 150 |
+| Julia Fiedorczuk | Każdy śnił swój sen | https://wolnelektury.pl/katalog/lektura/fiedorczuk-kazdy-snil-swoj-sen/ | **2019** | Julia Fiedorczuk, Każdy śnił swój sen, 2019, wyd. I. | Free Art License 1.3 | 150 |
+| Radek Rak | Małe zwierzątka | https://wolnelektury.pl/katalog/lektura/rak-male-zwierzatka/ | **2020** | Radek Rak, Małe zwierzątka, Fundacja Nowoczesna Polska 2020. | Free Art License 1.3 | 150 |
+| Wit Szostak | Posłowie | https://wolnelektury.pl/katalog/lektura/szostak-poslowie/ | **2021** | Wit Szostak, Posłowie, wyd. I, Fundacja Nowoczesna Polska 2021. | Free Art License 1.3 | 100 |
+| Wojciech Orliński | Ulica Conrada | https://wolnelektury.pl/katalog/lektura/orlinski-ulica-conrada/ | **2023** | Wojciech Orliński, Ulica Conrada, Fundacja Wolne Lektury, Warszawa 2023. | Free Art License 1.3 | 150 |
 
 ## Filters (both sources)
 
@@ -64,7 +73,6 @@ are **approximate** (regex heuristics, no morphology): they miss some cases, rul
 node tests/corpus/tools/build-clean-prose.mjs <raw-dir>
 ```
 `<raw-dir>/wiki/a*.json`: MediaWiki API responses (as above); `<raw-dir>/<slug>.txt`:
-`https://wolnelektury.pl/media/book/txt/<slug>.txt` for the slugs `janko-muzykant`,
-`kamizelka`, `katarynka`, `lalka-tom-pierwszy`, `lalka-tom-drugi`, `latarnik`,
-`przedwiosnie`. Newer Wikipedia revisions give a different set; the committed files are the
+`https://wolnelektury.pl/media/book/txt/<slug>.txt` for each slug in `WL_BOOKS`.
+Without `<raw-dir>/wiki` the committed Wikipedia file is kept unchanged. Newer Wikipedia revisions give a different set; the committed files are the
 reference.

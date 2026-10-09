@@ -228,12 +228,13 @@ has no expected issues. Sources, licenses and filters: `clean-prose/SOURCES.md`.
 
 * `clean-prose/wikipedia/sentences.jsonl`: Polish Wikipedia, **CC BY-SA 4.0**, with its own
   `LICENSE` (share-alike stays inside that folder). Ids `cp-wp-NNNNN`.
-* `clean-prose/wolnelektury/sentences.jsonl`: Wolne Lektury, public domain, only texts based on
-  editions from 1950 or later (modern orthography), with its own `LICENSE`. Ids `cp-wl-NNNNN`.
+* `clean-prose/wolnelektury/sentences.jsonl`: Wolne Lektury, openly licensed (CC BY-SA 3.0 PL or
+  Free Art License 1.3) works **originally written or first published in 1950 or later** (the
+  edition year is not enough), with its own `LICENSE`. Ids `cp-wl-NNNNN`.
 
 One JSON object per line: `id`, `text` (NFC), `source_title`, `author`, `url`, `license`,
 `reform_2026` (ids of matching reform patterns, usually `[]`), plus `revision` and `permalink`
-(Wikipedia) or `edition` (Wolne Lektury). Offsets in engine output are UTF-16, as everywhere.
+(Wikipedia) or `written` (original writing/first-publication year) and `edition` (Wolne Lektury). Offsets in engine output are UTF-16, as everywhere.
 
 **Engine input/output.** Send each sentence as its own check, with request id
 `corpus-<sentence id>` (the same test-tooling convention as for corpus examples) or the bare
@@ -293,7 +294,7 @@ The JSONL file stays the single source of truth; markup is only an input aid.
   examples, added because grammar recall was the weakest category in Engine's PR #18 dev
   run (41.2%). New subcategories: `grammar.case_government`, `grammar.participle`.
 * **Clean-prose false-alarm set** (separate from the scored corpus): Wikipedia (CC BY-SA 4.0)
-  and Wolne Lektury (public domain, post-1950 editions) sentences, `fp-rate.mjs`, and the
+  and Wolne Lektury (works written 1950 or later; first built with 1879-1924 works in 1975-76 editions, replaced in corpus/clean-prose-post1950) sentences, `fp-rate.mjs`, and the
   approximate 2026-reform detector `reform-2026.mjs`; see "Clean-prose false-alarm set".
 
 * **Corpus format 1.0**: unchanged in the first phase-1 commit (no schema change). The `split` field
