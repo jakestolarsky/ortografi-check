@@ -88,7 +88,9 @@ These are candidates for exclusion in phase 5, **only** after corpus checks.
    engine an NFC *copy* and maps every range back to the original UTF-16 offsets via
    `NfcText` (segments = starter + combining marks; ranges never split a surrogate pair or
    a letter from its marks). The request text is never altered (PLAN.md section 4).
-   Replacements are returned in NFC, so accepting a fix stores that fragment as NFC.
+   Replacements are re-expressed for the original range: words the fix doesn't touch keep
+   their form, and an edited word is NFC (so "Wiem że" with a decomposed "że" gets
+   "Wiem, że" with "że" still decomposed). Found by the dev split's p1-0239.
    The timings above were taken before this layer; it adds an `isNormalized` scan
    (microseconds for already-NFC text) and a per-segment pass only for non-NFC text.
 7. LanguageTool messages contain inline markup (`<suggestion>…</suggestion>`); the UI must

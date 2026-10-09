@@ -134,7 +134,7 @@ class NormalizingCheckerTest {
     assertEquals(List.of("Gdańsk"), w.replacements());
     // A fix inside a decomposed word replaces that whole word with its NFC form.
     String k = "Ta ksia\u0328zka lez\u0307y.";
-    Issue x = new NormalizingChecker(oneIssue("książka", "książka")).check(k).get(0);
+    Issue x = new NormalizingChecker(oneIssue("ksiązka", "książka")).check(k).get(0);
     assertEquals(List.of("książka"), x.replacements());
   }
 
