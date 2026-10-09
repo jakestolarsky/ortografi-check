@@ -464,3 +464,29 @@ scoring 1.2). No rule was changed because of it.
 | overall | 100.0% | 74.4% (58/78) | 74.1% |
 
 Held-out clean sentences flagged: 0/43.
+
+### Keeping typos in names and all-caps words (sealed-set follow-up)
+
+Corpus's sealed set showed `d4c5e3a` hid typos in Polish place names mid-sentence and in all-caps
+words (12/17 caught vs 17/17 on main; we have not seen the set). Losing real typos costs more than
+extra alarms, so both filters now ask the speller (`MorfologikSpellerRule.isMisspelled` /
+`getSpellingSuggestions`) before hiding a word. Tests use new sentences of our own.
+
+- **Name** (capitalised mid-sentence) is hidden only if none of these holds: a capitalised
+  suggestion within 2 edits (Damerau, a transposition is one edit); the lowercased word is known;
+  one adjacent transposition gives a known word (`Krakwoa` → `Krakowa`, `Spootu` → `Sopotu`).
+- **All caps** is an acronym when it has at most 4 letters (`PKP`, `NATO`), when its lowercase or
+  titlecase form is known, or when neither form has a suggestion within 2 edits or a known
+  transposition (`UNESCO`, `QWZXKR`). Otherwise it is a typo in capitals and is reported
+  (`WARSZAWIEE`, `PSZYJEHAŁEM`).
+
+| | d4c5e3a | this change |
+|---|---:|---:|
+| clean-prose false alarms | 833 (196.6 / 1,000) | 849 (200.4 / 1,000) |
+| MORFOLOGIK_RULE_PL_PL | 475 | 491 (+12 names such as `Mincla`, `Wereszczakównej`; +4 all caps: `ENIAC`, `EEPROM`, `ODIHR`, `CORINE`) |
+| ZDANIA_ZLOZONE | 82 | 82 |
+| dev spelling P / R / top | 98.2% / 76.7% / 83.9% | unchanged |
+| dev punctuation / grammar recall | 82.5% / 35.6% | unchanged |
+| dev correct sentences flagged | 0/101 | 0/101 |
+
+Held-out was not run again.

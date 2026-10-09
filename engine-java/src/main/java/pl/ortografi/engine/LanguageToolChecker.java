@@ -18,6 +18,7 @@ public final class LanguageToolChecker implements Checker {
   private static final String LANGUAGE = "pl-PL";
   private final JLanguageTool lt;
   private final PossessiveFromName.Lexicon names;
+  private final SpellingNoiseFilter.Speller speller;
 
   public LanguageToolChecker() {
     Language polish = Languages.getLanguageForShortCode(LANGUAGE);
@@ -32,6 +33,29 @@ public final class LanguageToolChecker implements Checker {
       @Override
       public boolean isFormOf(String form, String lemma) {
         return readings(polish, form).stream().anyMatch(r -> lemma.equals(r.getLemma()));
+      }
+    };
+    org.languagetool.rules.spelling.morfologik.MorfologikSpellerRule rule = lt.getAllActiveRules().stream()
+        .filter(r -> r.getId().equals(SpellingNoiseFilter.RULE))
+        .map(r -> (org.languagetool.rules.spelling.morfologik.MorfologikSpellerRule) r)
+        .findFirst().orElseThrow();
+    this.speller = new SpellingNoiseFilter.Speller() {
+      @Override
+      public boolean known(String word) {
+        try {
+          return !rule.isMisspelled(word);
+        } catch (IOException e) {
+          return false;
+        }
+      }
+
+      @Override
+      public List<String> suggest(String word) {
+        try {
+          return rule.getSpellingSuggestions(word);
+        } catch (IOException e) {
+          return List.of();
+        }
       }
     };
   }
@@ -67,7 +91,7 @@ public final class LanguageToolChecker implements Checker {
       String covered = text.substring(m.getFromPos(), m.getToPos());
       if (m.getRule().getId().equals(SpellingNoiseFilter.RULE)) {
         List<int[]> others = spelling.stream().filter(r -> r[0] != m.getFromPos()).toList();
-        if (SpellingNoiseFilter.reason(text, m.getFromPos(), m.getToPos(), m.getSuggestedReplacements(), others) != null) {
+        if (SpellingNoiseFilter.reason(text, m.getFromPos(), m.getToPos(), m.getSuggestedReplacements(), others, speller) != null) {
           continue;
         }
       }

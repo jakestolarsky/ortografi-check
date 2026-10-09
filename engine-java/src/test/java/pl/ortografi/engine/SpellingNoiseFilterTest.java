@@ -13,8 +13,18 @@ class SpellingNoiseFilterTest {
     int s = text.indexOf(word);
     List<int[]> others = new java.util.ArrayList<>();
     for (String o : otherFlagged) { int i = text.indexOf(o); others.add(new int[] {i, i + o.length()}); }
-    return SpellingNoiseFilter.reason(text, s, s + word.length(), suggestions, others);
+    return SpellingNoiseFilter.reason(text, s, s + word.length(), suggestions, others, FAKE);
   }
+
+  /** A tiny stand-in speller for the shape tests; the real one is exercised below. */
+  private static final SpellingNoiseFilter.Speller FAKE = new SpellingNoiseFilter.Speller() {
+    final java.util.Set<String> known = java.util.Set.of("Kraków", "Krakowa", "Gdańsk", "Gdańsku", "przyjechałem",
+        "Przyjechałem", "Warszawie", "warszawie", "Sopotu");
+    public boolean known(String w) { return known.contains(w); }
+    public List<String> suggest(String w) {
+      return known.stream().filter(k -> SpellingNoiseFilter.distance(k, w) <= 2).sorted().toList();
+    }
+  };
 
   @Test
   void digitsAndMixedScripts() {
@@ -58,7 +68,7 @@ class SpellingNoiseFilterTest {
       assertNull(reason(text, "Pszyjehałem", far), text);
     }
     // Mid-sentence it is still a name; an opening quote or dash after a word does not start a sentence.
-    assertEquals("name", reason("Spotkałem wczoraj Pszyjehałem.", "Pszyjehałem", far));
+    assertEquals("name", reason("Spotkałem wczoraj Zbyszkiewicza.", "Zbyszkiewicza", far));
     assertEquals("name", reason("Spotkałem wczoraj „Xiaolonga” na konferencji.", "Xiaolonga", List.of()));
     assertEquals("name", reason("Spotkałem go — Xiaolonga — na konferencji.", "Xiaolonga", List.of()));
   }
@@ -77,6 +87,30 @@ class SpellingNoiseFilterTest {
     assertNull(reason("Tak było.\n„Biało-czerowny sztandar”.", "Biało-czerowny", List.of()));
     assertEquals("hyphenated-name", reason("Neuville-Vitasse leży we Francji.", "Neuville-Vitasse", List.of()),
         "both parts capitalised is still a name at sentence start");
+  }
+
+  @Test
+  void capitalisedWordCloseToAKnownWordIsKeptMidSentence() {
+    // Two edits from a capitalised suggestion.
+    assertNull(reason("Pojechaliśmy latem do Gdnasku nad morze.", "Gdnasku", List.of("Gdańsku")));
+    // The speller offers nothing close, but one transposition gives a known word.
+    assertNull(reason("Wczoraj wróciłem z Krakwoa pociągiem.", "Krakwoa", List.of()));
+    assertNull(reason("Spędziliśmy weekend w Spootu z rodziną.", "Spootu", List.of()));
+    // Lowercased, the word is known: a stray capital, not a name.
+    assertNull(reason("Ostatnio Przyjechałem bardzo późno.", "Przyjechałem", List.of()));
+    // Far from anything known: still a name.
+    assertEquals("name", reason("Spotkałem wczoraj Xiaolonga na konferencji.", "Xiaolonga", List.of("Ksiolonga")));
+  }
+
+  @Test
+  void allCapsIsAnAcronymOnlyWhenShortOrFarFromAnyWord() {
+    assertEquals("all-caps", reason("Pojechałem pociągiem PKP do domu.", "PKP", List.of()));
+    assertEquals("all-caps", reason("Polska należy do NATO od lat.", "NATO", List.of()));
+    assertEquals("all-caps", reason("Obiekt wpisano na listę UNESCO w zeszłym roku.", "UNESCO", List.of()));
+    assertEquals("all-caps", reason("Raport przygotowała agencja QWZXKR.", "QWZXKR", List.of()));
+    assertNull(reason("WCZORAJ PSZYJEHAŁEM DO DOMU.", "PSZYJEHAŁEM", List.of()));
+    assertNull(reason("MIESZKAM W WARSZAWIEE OD ROKU.", "WARSZAWIEE", List.of()));
+    assertNull(reason("Napis brzmiał: ZAMKNIĘTE W WARSZAWIEE.", "WARSZAWIEE", List.of()));
   }
 
   @Test
@@ -129,6 +163,20 @@ class SpellingNoiseFilterTest {
       assertEquals(1, sp.size(), text);
       String first = text.contains("Wczorja") ? "Wczorja" : "Pszyjehałem";
       assertEquals(text.indexOf(first), sp.get(0).start(), text);
+    }
+  }
+
+  @Test
+  void realEngineKeepsNameAndAllCapsTypos() throws Exception {
+    for (String text : List.of("Wczoraj wróciłem z Krakwoa pociągiem.", "Latem pojechaliśmy do Gdańksa nad morze.",
+        "Spędziliśmy weekend w Zakopanm z rodziną.", "Mieszkamy pod Poznaiem od lat.",
+        "Na murze ktoś napisał WARSZAWIEE wielkimi literami.", "WCZORAJ PSZYJEHAŁEM DO DOMU.",
+        "Nagłówek brzmiał: OGŁOSZENIEE DLA MIESZKAŃCÓW.")) {
+      assertEquals(1, spelling(text).size(), text);
+    }
+    for (String text : List.of("Pojechałem pociągiem PKP do domu.", "Polska należy do NATO od lat.",
+        "Obiekt wpisano na listę UNESCO w zeszłym roku.")) {
+      assertEquals(List.of(), spelling(text), text);
     }
   }
 }

@@ -23,11 +23,22 @@ final class SpellingNoiseFilter {
 
   private SpellingNoiseFilter() {}
 
+  /** The speller's view of a word, used to tell typos of known words from names and acronyms. */
+  interface Speller {
+    boolean known(String word);
+
+    List<String> suggest(String word);
+  }
+
+  /** Below this many letters an all-caps word is always read as an acronym (PKP, NATO). */
+  static final int ACRONYM_MAX_LETTERS = 4;
+
   /**
    * Why this spelling match is not a typo, or {@code null} to keep it. {@code otherFlagged}
    * holds the ranges of the other spelling matches in the same text.
    */
-  static String reason(String text, int start, int end, List<String> suggestions, List<int[]> otherFlagged) {
+  static String reason(String text, int start, int end, List<String> suggestions, List<int[]> otherFlagged,
+      Speller speller) {
     String w = text.substring(start, end);
     // Decomposed (NFD) letters are the NFC layer's job, not a sign of foreign text.
     if (COMBINING.matcher(w).find()) return null;
@@ -36,7 +47,7 @@ final class SpellingNoiseFilter {
     }
     long letters = w.codePoints().filter(Character::isLetter).count();
     if (letters >= 2 && w.equals(w.toUpperCase(java.util.Locale.ROOT)) && !w.equals(w.toLowerCase(java.util.Locale.ROOT))) {
-      return "all-caps";
+      return allCapsTypo(w, letters, speller) ? null : "all-caps";
     }
     for (int c : w.codePoints().toArray()) {
       if (Character.isLetter(c) && POLISH_LETTERS.indexOf(Character.toLowerCase(c)) < 0) return "foreign-letters";
@@ -62,11 +73,49 @@ final class SpellingNoiseFilter {
     if (dash > 0 && dash < w.length() - 1 && (nameLike || ROMAN_PREFIX.matcher(w).matches())) {
       return "hyphenated-name";
     }
-    if (Character.isUpperCase(w.codePointAt(0)) && !initial
-        && suggestions.stream().noneMatch(s -> !s.isEmpty() && Character.isUpperCase(s.codePointAt(0)) && distance(s, w) <= 1)) {
+    if (Character.isUpperCase(w.codePointAt(0)) && !initial && !nearKnownWord(w, suggestions, speller)) {
       return "name";
     }
     return null;
+  }
+
+  /**
+   * A capitalised word that is probably a typo of a known word or name: a capitalised suggestion
+   * within two edits (transpositions count as one), the lowercased word is known, or one adjacent
+   * transposition gives a known word ("Krakwoa" → "Krakowa").
+   */
+  static boolean nearKnownWord(String w, List<String> suggestions, Speller speller) {
+    if (suggestions.stream().anyMatch(s -> capitalised(s) && distance(s, w) <= 2)) return true;
+    String lower = w.toLowerCase(java.util.Locale.ROOT);
+    if (speller.known(lower)) return true;
+    if (speller.suggest(w).stream().anyMatch(s -> capitalised(s) && distance(s, w) <= 2)) return true;
+    return transposedKnown(w, speller) || transposedKnown(lower, speller);
+  }
+
+  /**
+   * An all-caps word is an acronym when it is short or nothing known is close to it; a long one
+   * near a known word ("WARSZAWIEE") is a typo in capitals and is spell-checked like any word.
+   */
+  static boolean allCapsTypo(String w, long letters, Speller speller) {
+    if (letters <= ACRONYM_MAX_LETTERS) return false;
+    String lower = w.toLowerCase(java.util.Locale.ROOT);
+    String title = lower.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + lower.substring(1);
+    if (speller.known(lower) || speller.known(title)) return false; // a known word written in caps
+    for (String form : List.of(lower, title)) {
+      if (speller.suggest(form).stream().anyMatch(s -> distance(s, form) <= 2)) return true;
+    }
+    return transposedKnown(lower, speller) || transposedKnown(title, speller);
+  }
+
+  private static boolean capitalised(String s) { return !s.isEmpty() && Character.isUpperCase(s.codePointAt(0)); }
+
+  private static boolean transposedKnown(String w, Speller speller) {
+    for (int i = 0; i + 1 < w.length(); i++) {
+      if (w.charAt(i) == w.charAt(i + 1)) continue;
+      String t = w.substring(0, i) + w.charAt(i + 1) + w.charAt(i) + w.substring(i + 2);
+      if (speller.known(t)) return true;
+    }
+    return false;
   }
 
   /** Quotes, brackets, dashes and list bullets that can open a sentence before its first word. */
