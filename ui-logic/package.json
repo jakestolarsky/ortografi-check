@@ -1,0 +1,8 @@
+{
+  "name": "ortografi-ui-logic",
+  "private": true,
+  "type": "module",
+  "description": "Framework-free UI logic (PLAN.md s.3/9/10). Paths mirror src/lib/* so it moves into the SvelteKit scaffold unchanged.",
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "devDependencies": { "typescript": "~5.6.3", "vitest": "~2.1.9" }
+}
