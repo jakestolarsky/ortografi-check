@@ -62,17 +62,6 @@ impl Engine {
     }
 }
 
-/// Engine command from the environment until bundling lands:
-/// `ORTOGRAFI_ENGINE` = program, `ORTOGRAFI_ENGINE_ARGS` = whitespace-separated args.
-/// Unset: the supervisor reports `unavailable` and answers ENGINE_UNAVAILABLE.
-pub fn config_from_env() -> EngineConfig {
-    let program = std::env::var("ORTOGRAFI_ENGINE").unwrap_or_else(|_| "ortografi-engine-not-configured".into());
-    let args = std::env::var("ORTOGRAFI_ENGINE_ARGS")
-        .map(|a| a.split_whitespace().map(String::from).collect())
-        .unwrap_or_default();
-    EngineConfig::new(program, args)
-}
-
 /// Start the engine on a background thread (app launch, manual retry).
 pub fn start_in_background(engine: Arc<Engine>) {
     std::thread::spawn(move || {

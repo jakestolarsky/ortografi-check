@@ -6,3 +6,6 @@ node_modules/
 .DS_Store
 /.tmp/
 /contracts/rust/target/
+# Staged by scripts/prepare-engine.sh (jlink runtime + engine JARs); only the placeholder is tracked.
+/src-tauri/resources/engine/*
+!/src-tauri/resources/engine/.gitkeep
