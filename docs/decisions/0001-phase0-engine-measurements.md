@@ -287,6 +287,24 @@ because of these results.** All tuning used dev only; held-out had not been run 
 - Held-out is small (59 scored issues; grammar has 5). Held-out is not lower than dev here, but
   that does not prove generalisation: a single example moves grammar F1 by ~10 points.
 
+## Minimal punctuation edits (follow-up to PR #10)
+
+Before this change, only insertions were narrowed. Now one minimal-edit step trims the common
+prefix and suffix of the engine's span and the replacement, for punctuation edits only, so an
+extra comma is reported as exactly the comma with `""` (corpus FORMAT.md, "Deletion ranges").
+Dev only, scored with exact ranges:
+
+- On main's corpus: overall F1 65.3% → 71.8% (punctuation 44.7% → 61.7%). 8 examples fixed, none
+  regressed. The release-critical exact-range failures p0-0001 and p1-0160 are fixed.
+- On corpus PR #11 (draft, `48e34b7`): F1 60.1% → 68.6%. 12 examples fixed, none regressed.
+- Overlap and strict-category scores are unchanged on both corpora.
+
+During development, two variants regressed dev and were rejected:
+- **Punctuation-only insertions:** a missing space after a comma (p1-0210) was no longer a
+  point insertion.
+- **Also trimming removed spaces:** this broke the spacing/whitespace convention (p0-0044,
+  p0-0045, p1-0202).
+
 ## Open items
 
 - **Memory at 50k: resolved on Linux (phase 1).** See "Memory (phase 1)" below: peak RSS is now
