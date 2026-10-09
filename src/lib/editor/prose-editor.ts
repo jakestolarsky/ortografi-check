@@ -27,7 +27,11 @@ function buildDecorations(issues: readonly Issue[], docLength: number): Decorati
     .sort((a, b2) => a.start - b2.start || a.end - b2.end);
   for (const i of sorted) {
     if (i.start === i.end) b.add(i.start, i.start, Decoration.widget({ widget: new InsertMarker(i), side: 1 }));
-    else b.add(i.start, i.end, Decoration.mark({ class: `cm-issue cm-issue-${i.category}` }));
+    else if (i.replacements.length > 0 && i.replacements.every((r) => r === '')) {
+      // Pure deletion (e.g. unnecessary comma, contracts README): struck through, labelled.
+      b.add(i.start, i.end, Decoration.mark({ class: `cm-delete cm-issue-${i.category}`,
+        attributes: { 'aria-label': `Do usunięcia: ${i.message}` } }));
+    } else b.add(i.start, i.end, Decoration.mark({ class: `cm-issue cm-issue-${i.category}` }));
   }
   return b.finish();
 }
@@ -51,6 +55,11 @@ const proseTheme = EditorView.theme({
   '.cm-issue-punctuation': { textDecorationColor: 'var(--issue-punctuation)' },
   '.cm-issue-grammar': { textDecorationColor: 'var(--issue-grammar)' },
   '.cm-issue-style, .cm-issue-other': { textDecorationColor: 'var(--issue-style)' },
+  '.cm-delete': { textDecoration: 'line-through', textDecorationThickness: '2px',
+    borderRadius: 'var(--radius-sm)', outline: '1px dashed currentColor', outlineOffset: '1px' },
+  '.cm-delete.cm-issue-punctuation': { textDecorationColor: 'var(--issue-punctuation)', outlineColor: 'var(--issue-punctuation)' },
+  '.cm-delete.cm-issue-spelling': { textDecorationColor: 'var(--issue-spelling)', outlineColor: 'var(--issue-spelling)' },
+  '.cm-delete.cm-issue-grammar': { textDecorationColor: 'var(--issue-grammar)', outlineColor: 'var(--issue-grammar)' },
   '.cm-insert-marker': { display: 'inline-block', width: '0', height: '1em', verticalAlign: 'text-bottom',
     borderLeft: '2px solid var(--issue-punctuation)', margin: '0 -1px' },
 });

@@ -3,6 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { undo } from '@codemirror/commands';
 import { CheckSession } from '$lib/checking/session';
 import { FakeEngine } from '$lib/checking/fake-engine';
+import type { Engine } from '$lib/checking/engine';
 import { createProseEditor, applySuggestion, type ProseEditor } from './prose-editor';
 
 let ed: ProseEditor | undefined;
@@ -54,6 +55,39 @@ describe('prose editor diagnostics', () => {
     ed.view.dispatch({ changes: { from: 0, insert: 'Ola. ' } });
     await p;
     expect(marks()).toEqual([]);
+  });
+});
+
+describe('comma deletion (contracts README edit conventions)', () => {
+  const text = 'Był szybki, jak wiatr.';
+  const engine: Engine = {
+    check: async (q) => ({ protocol: 1, type: 'result', id: q.id, docVersion: q.docVersion,
+      settingsVersion: q.settingsVersion, engineVersion: 'stub', status: 'complete',
+      issues: [{ start: 10, end: 11, ruleId: 'ZBEDNY_PRZECINEK', category: 'punctuation',
+        engineCategory: 'PUNCTUATION', issueType: 'typographical', message: 'Zbędny przecinek', replacements: [''] }] }),
+  };
+
+  it('marks only the comma as a visible, labelled deletion', async () => {
+    const session = new CheckSession(engine, text);
+    ed = createProseEditor({ parent: document.body, session });
+    await session.check();
+    const del = [...document.querySelectorAll('.cm-delete')];
+    expect(del.map((e) => e.textContent)).toEqual([',']);
+    expect(del[0].classList.contains('cm-issue-punctuation')).toBe(true);
+    expect(del[0].getAttribute('aria-label')).toBe('Do usunięcia: Zbędny przecinek');
+  });
+
+  it('deletes the comma, keeps the space, one undo restores it', async () => {
+    const session = new CheckSession(engine, text);
+    ed = createProseEditor({ parent: document.body, session });
+    await session.check();
+    expect(applySuggestion(ed.view, session, 0, 0)).toBe(true);
+    expect(ed.view.state.doc.toString()).toBe('Był szybki jak wiatr.');
+    expect(ed.view.state.selection.main.head).toBe(10);
+    expect(document.querySelectorAll('.cm-delete')).toHaveLength(0);
+    undo(ed.view);
+    expect(ed.view.state.doc.toString()).toBe(text);
+    expect(session.text).toBe(text);
   });
 });
 
