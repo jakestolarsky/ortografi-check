@@ -15,7 +15,8 @@ import java.util.regex.Pattern;
  * <p>This recognises the derivation, not a word list. The word must be lowercase and consist of
  * stem + suffix + adjective ending, and the stem must resolve (with the regular stem alternations)
  * to a <em>personal name</em> in the engine's own lexicon: a capitalised lemma tagged
- * {@code subst:sg:nom} with gender f (for -in/-yn) or m1 (for -ów/-ow-). Common nouns
+ * {@code subst:sg:nom} with gender f (for -in/-yn) or m1 (for -ów/-ow-). A word that is a form
+ * of the -ów town built from that name ("krakowa" → Kraków ← Krak) is excluded. Common nouns
  * ("mama" → "mamin" is already in the dictionary) and place names (m3) never qualify.
  */
 final class PossessiveFromName {
@@ -72,7 +73,11 @@ final class PossessiveFromName {
       }
       candidates.add(stem + "a"); // Kuba → kubowy
       for (String c : candidates) {
-        if (names.isPersonalName(capitalise(c), "m1")) {
+        // Towns in -ów are old possessives from personal names (Kraków ← Krak). If the word is a
+        // form of the town built from this very name, it is a miscapitalised town, not a
+        // possessive. Not applied to -in: "Zosina" is also a form of the village Zosin.
+        if (names.isPersonalName(capitalise(c), "m1")
+            && !names.isFormOf(capitalise(word), capitalise(c) + "ów")) {
           return true;
         }
       }
