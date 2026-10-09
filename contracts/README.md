@@ -41,3 +41,22 @@ contracts/generate.sh   # needs pnpm deps, cargo-typify 0.5.0 and rustfmt (Rust 
 ```
 
 CI (`desktop.yml`, job `contracts`) regenerates and fails on any diff, then runs Vitest and `cargo test` in `contracts/rust`.
+
+## Desktop IPC (Tauri)
+
+| Name | Kind | Payload |
+|---|---|---|
+| `engine_check` | command | `{ request: CheckRequest }`. Returns immediately; the answer arrives on `engine://message` |
+| `engine://message` | event | A v1 `CheckResult` or `ErrorMessage`, **unchanged**. Not emitted for stale answers (older docVersion/settingsVersion), or for a waiting check superseded by a newer one before it was sent |
+| `engine_status` | command | `{ "state": EngineState }`. Call once on load |
+| `engine://status` | event | `{ "state": EngineState }` on every change |
+| `engine_retry` | command | Manual retry after `unavailable` |
+
+`EngineState`:
+- `starting`: the first start, launched in the background at app start.
+- `ready`
+- `busy`: a check is running.
+- `restarting`: stopped after a crash or timeout, respawned for the next check.
+- `unavailable`: the engine can't run until a manual retry. This happens when it can't be spawned, after more than one consecutive crash or invalid line, or after 3 consecutive TIMEOUTs with no successful result in between.
+
+Per-check limit: 3 s + 60 µs per UTF-16 unit, plus 3 s on the first check after each engine start. The startup (`ready`) limit is 10 s.

@@ -5,5 +5,5 @@ pub mod supervisor;
 
 pub use protocol::Message;
 pub use stale::StaleFilter;
-pub use supervisor::{EngineConfig, EngineState, Supervisor};
+pub use supervisor::{EngineConfig, EngineState, StatusListener, Supervisor};
 pub mod ipc;
