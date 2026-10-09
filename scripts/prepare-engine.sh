@@ -25,10 +25,11 @@ if [ "${1:-}" = "--if-missing" ] && [ -f "$DEST/ortografi-engine.jar" ] && [ -f 
   exit 0
 fi
 
-cd "$ROOT/engine-java"
 # Remove stale dependency JARs first: `package` adds to target/lib but never deletes, so JARs
 # dropped from the pom (e.g. by the #21 trim) would otherwise still be staged.
-rm -rf target/lib
+rm -rf "$ROOT/engine-java/target/lib"
+
+cd "$ROOT/engine-java"
 mvn -B -ntp -q package -DskipTests
 JAR=$(ls target/ortografi-engine-*.jar | head -n 1)
 

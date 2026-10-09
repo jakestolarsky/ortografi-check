@@ -50,11 +50,21 @@ per OS/arch, WebView excluded), measured 2026-10-09 on Linux x64:
 | OS | Package | Download | Installed | Fits? |
 |---|---|---|---|---|
 | Linux x64 | `.deb` | 48.4 MiB | 103.2 MiB (engine 94.0, binary 9.2; `Installed-Size` 103.4 MiB) | yes / yes |
-| Linux x64 | AppImage | not built: linuxdeploy stops on `libjvm.so` in the Java runtime (open issue) | | unmeasured |
+| Linux x64 | AppImage (`scripts/build-appimage.sh`) | 146.6 MiB | 410.9 MiB extracted, of which ~305 MiB is GTK/WebKitGTK that the AppImage carries (engine 94.1, binary 9.2) | no / no as a whole file; the budget excludes the WebView, which the AppImage cannot leave out |
 | macOS (ARM, Intel) | `.dmg` | unmeasured | unmeasured | unmeasured |
 | Windows x64 | NSIS/MSI | unmeasured | unmeasured | unmeasured |
 
-The WebView (WebKitGTK on Linux) is a system dependency and is not counted. The app starts `engine/runtime/bin/java -jar engine/ortografi-engine.jar` from its resource
+The WebView (WebKitGTK on Linux) is a system dependency and is not counted.
+
+### Linux AppImage
+
+Run `scripts/build-appimage.sh` (not plain `pnpm tauri build --bundles appimage`). linuxdeploy
+scans every ELF file in the AppDir; for the self-contained Java runtime it stops on `libjvm.so`
+and rewrites the runtime's rpaths (breaking `engine-manifest.json`'s sha256 sums). The script lets
+linuxdeploy skip the JVM libraries (`LINUXDEPLOY_EXCLUDED_LIBRARIES`), puts the untouched staged
+engine back into the AppDir, checks every file against the manifest, and repacks with
+linuxdeploy-plugin-appimage. Needs `dpkg-dev` (the GTK plugin calls `dpkg-architecture`);
+`APPIMAGE_EXTRACT_AND_RUN=1` is set so it works without FUSE. The app starts `engine/runtime/bin/java -jar engine/ortografi-engine.jar` from its resource
 directory; nothing has to be installed on the user's machine. The engine is per OS/arch, so build
 the macOS ARM and Intel apps on (or for) each architecture separately.
 

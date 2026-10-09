@@ -13,7 +13,7 @@ fn tmp(name: &str) -> PathBuf {
 
 const MANIFEST: &str = r#"{
   "manifestVersion": 1, "protocol": 1,
-  "adapter": { "version": "0.0.1-phase0", "jar": "ortografi-engine-0.0.1-phase0.jar" },
+  "adapter": { "version": "0.0.1-phase0", "jar": "ortografi-engine.jar" },
   "languageTool": { "version": "6.8" },
   "runtime": { "vendor": "Eclipse Adoptium", "vendorVersion": "Temurin-21.0.12+1",
                "version": "21.0.12+1-LTS", "os": "Linux", "arch": "amd64" },
