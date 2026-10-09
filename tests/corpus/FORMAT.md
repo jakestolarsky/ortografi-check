@@ -94,8 +94,21 @@ A **deletion** (an unnecessary comma or other punctuation mark) is annotated as:
 
 Example (`p0-0001`, "Kupiłem chleb, i mleko."): `start 13, end 14, original ",", fixes [""]`.
 
-Spacing errors are a different subcategory: `punctuation.spacing` (" ," → ",") and
-`punctuation.whitespace` ("  " → " ") replace a range that includes the space.
+### Space edits (contracts/README.md "Edit conventions", PR #28)
+
+An issue's range is **exactly the text its fix replaces**, so spaces follow the same
+minimal-edit rules as commas (corpus annotation convention 1.2):
+
+* **Extra space** → a **one-character deletion** of that space, `fixes: [""]`
+  (`end - start == 1`, `original " "`). A double space deletes **one** space, the second
+  one (`Ala  ma` → range over the second space). A space before punctuation deletes the
+  space only (`kota ,` → range over the space; `punctuation.spacing`). A space that
+  splits a word (`nie łatwy` → `niełatwy`, `Na przeciwko` → `Naprzeciwko`) is the same
+  edit under its spelling subcategory.
+* **Missing space** → a **zero-length insertion** of `" "` at the offset where it belongs
+  (`start == end`, `original ""`, `fixes: [" "]`), e.g. `Niewiem` → `Nie wiem` has `3..3`.
+* Offsets are UTF-16, `corrected_text` is unchanged by this convention. The data test
+  checks every annotation whose only fix removes or adds a single space.
 
 Scoring (1.3): an engine span wider than the comma (for example `, i` → ` i`) is still a
 detection under the default `overlap` match, but not a fix hit; the fix hit needs the
@@ -265,6 +278,10 @@ The JSONL file stays the single source of truth; markup is only an input aid.
 
 ## Changelog
 
+* **Corpus annotation convention 1.2** (contracts PR #28 space rule): extra spaces are
+  one-character deletions with `""`, missing spaces are zero-length insertions of `" "`.
+  30 examples converted (offsets only; texts and `corrected_text` unchanged). Line
+  `schema_version` stays 1.0/1.1 (no schema change).
 * **Corpus format 1.1** (PR #3 review): new `style` category for annotated style
   issues (always `required: false`, line `schema_version` ≥ 1.1). Older 1.0 lines
   stay valid. Schema `corpus-example.v1.schema.json` updated.

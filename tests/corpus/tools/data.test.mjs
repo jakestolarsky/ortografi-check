@@ -72,3 +72,20 @@ test('extra-comma deletions cover only the comma, fix "", following space kept (
   }
   assert.deepEqual(bad, []);
 });
+
+test('space edits are minimal (FORMAT.md "Space edits"): extra space = 1-char deletion, missing space = zero-length " "', () => {
+  const bad = [];
+  for (const e of all) for (const i of e.issues) {
+    if (i.fixes.length !== 1) continue;
+    const o = e.text.slice(i.start, i.end);
+    const f = i.fixes[0];
+    const removesOneSpace = f.length === o.length - 1 && [...o].some((_, j) => o[j] === ' ' && o.slice(0, j) + o.slice(j + 1) === f);
+    const addsOneSpace = f.length === o.length + 1 && [...f].some((_, j) => f[j] === ' ' && f.slice(0, j) + f.slice(j + 1) === o);
+    if (removesOneSpace && !(o === ' ' && f === '')) bad.push(`${e.id} deletion ${i.start}-${i.end}`);
+    if (addsOneSpace && !(o === '' && f === ' ' && i.start === i.end)) bad.push(`${e.id} insertion ${i.start}-${i.end}`);
+  }
+  assert.deepEqual(bad, []);
+  const dbl = all.find((e) => e.id === 'p0-0044');
+  assert.deepEqual([dbl.issues[0].start, dbl.issues[0].end, dbl.issues[0].fixes], [4, 5, ['']]);
+  assert.equal(dbl.text.slice(3, 5), '  '); // second of the two spaces
+});
