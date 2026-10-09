@@ -35,7 +35,9 @@ public final class LanguageToolChecker implements Checker {
               m.getFromPos(),
               m.getToPos(),
               m.getRule().getId(),
-              CategoryMapper.map(engineCategory, issueType),
+              CategoryMapper.map(
+                  m.getRule().getId(), engineCategory, issueType,
+                  text.substring(m.getFromPos(), m.getToPos())),
               engineCategory,
               issueType,
               m.getMessage(),
