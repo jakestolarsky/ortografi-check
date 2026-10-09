@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ortografi-check.local/contracts/v1/protocol.schema.json",
+  "title": "ortografi engine protocol v1 (DRAFT, pending agreement UI/Desktop/Engine)",
+  "description": "JSON lines over stdin/stdout between Rust and engine-java; the same CheckRequest/CheckResponse shapes cross Tauri IPC to the UI. Ranges are UTF-16 code units, end exclusive. Matches engine-java Adapter protocol 1.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Ready"
+    },
+    {
+      "$ref": "#/$defs/CheckRequest"
+    },
+    {
+      "$ref": "#/$defs/CheckResult"
+    },
+    {
+      "$ref": "#/$defs/Error"
+    },
+    {
+      "$ref": "#/$defs/Shutdown"
+    }
+  ],
+  "$defs": {
+    "protocol": {
+      "const": 1
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "Ready": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "type",
+        "engineVersion",
+        "language"
+      ],
+      "properties": {
+        "protocol": {
+          "$ref": "#/$defs/protocol"
+        },
+        "type": {
+          "const": "ready"
+        },
+        "engineVersion": {
+          "type": "string"
+        },
+        "language": {
+          "const": "pl-PL"
+        }
+      }
+    },
+    "Shutdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "type"
+      ],
+      "properties": {
+        "protocol": {
+          "$ref": "#/$defs/protocol"
+        },
+        "type": {
+          "const": "shutdown"
+        }
+      }
+    },
+    "CheckRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "type",
+        "id",
+        "docVersion",
+        "settingsVersion",
+        "text"
+      ],
+      "properties": {
+        "protocol": {
+          "$ref": "#/$defs/protocol"
+        },
+        "type": {
+          "const": "check"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "docVersion": {
+          "$ref": "#/$defs/version"
+        },
+        "settingsVersion": {
+          "$ref": "#/$defs/version"
+        },
+        "text": {
+          "type": "string",
+          "description": "Exact editor text; max 100000 UTF-16 code units (TEXT_TOO_LONG otherwise, never truncated)."
+        }
+      }
+    },
+    "Issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end",
+        "ruleId",
+        "category",
+        "engineCategory",
+        "issueType",
+        "message",
+        "replacements"
+      ],
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Exclusive; end == start is an insertion point."
+        },
+        "ruleId": {
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "spelling",
+            "punctuation",
+            "grammar",
+            "style",
+            "other"
+          ]
+        },
+        "engineCategory": {
+          "type": "string"
+        },
+        "issueType": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string",
+          "description": "Plain text. UI never renders it as HTML."
+        },
+        "replacements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Empty = warning without a ready fix."
+        }
+      }
+    },
+    "CheckResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "type",
+        "id",
+        "docVersion",
+        "settingsVersion",
+        "engineVersion",
+        "status",
+        "issues"
+      ],
+      "properties": {
+        "protocol": {
+          "$ref": "#/$defs/protocol"
+        },
+        "type": {
+          "const": "result"
+        },
+        "id": {
+          "type": "string"
+        },
+        "docVersion": {
+          "$ref": "#/$defs/version"
+        },
+        "settingsVersion": {
+          "$ref": "#/$defs/version"
+        },
+        "engineVersion": {
+          "type": "string"
+        },
+        "status": {
+          "const": "complete",
+          "description": "Incomplete analyses are reported as Error, never as a result."
+        },
+        "analysisMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Issue"
+          }
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "type",
+        "id",
+        "code",
+        "detail"
+      ],
+      "properties": {
+        "protocol": {
+          "$ref": "#/$defs/protocol"
+        },
+        "type": {
+          "const": "error"
+        },
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "code": {
+          "enum": [
+            "MALFORMED_REQUEST",
+            "UNSUPPORTED_PROTOCOL",
+            "UNKNOWN_TYPE",
+            "TEXT_TOO_LONG",
+            "ENGINE_ERROR",
+            "TIMEOUT",
+            "ENGINE_UNAVAILABLE"
+          ],
+          "description": "TIMEOUT and ENGINE_UNAVAILABLE are produced by Rust (supervisor), not by the Java adapter."
+        },
+        "detail": {
+          "type": "string",
+          "description": "Never contains user text."
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "length": {
+          "type": "integer"
+        },
+        "docVersion": {
+          "$ref": "#/$defs/version"
+        },
+        "settingsVersion": {
+          "$ref": "#/$defs/version"
+        }
+      },
+      "dependentRequired": {
+        "docVersion": [
+          "settingsVersion"
+        ],
+        "settingsVersion": [
+          "docVersion"
+        ]
+      },
+      "description": "An error answering a `check` carries that check's id, docVersion and settingsVersion; receivers drop errors whose versions are not current. Errors not tied to a parseable check (e.g. MALFORMED_REQUEST with id null) omit both."
+    }
+  }
+}

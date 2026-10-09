@@ -164,6 +164,47 @@ class AdapterTest {
     assertFalse(err.toString().contains("tajny"), "user text must not leak into protocol errors");
   }
 
+  private static void assertVersions(JsonNode err) {
+    assertEquals(7, err.get("docVersion").asLong(), err.toString());
+    assertEquals(3, err.get("settingsVersion").asLong(), err.toString());
+  }
+
+  private static void assertNoVersions(JsonNode err) {
+    assertFalse(err.has("docVersion"), err.toString());
+    assertFalse(err.has("settingsVersion"), err.toString());
+  }
+
+  @Test
+  void errorsAnsweringACheckCarryItsVersions() throws Exception {
+    FakeChecker fake = new FakeChecker();
+    assertVersions(run(new Adapter(fake, 3), check("v1", "długi tekst")).get(1)); // TEXT_TOO_LONG
+    fake.failWith = new IllegalStateException("x");
+    assertVersions(run(new Adapter(fake, 100), check("v2", "zle")).get(1)); // ENGINE_ERROR
+    JsonNode noText = run(new Adapter(fake, 100),
+        "{\"protocol\":1,\"type\":\"check\",\"id\":\"v3\",\"docVersion\":7,\"settingsVersion\":3}").get(1);
+    assertEquals("MALFORMED_REQUEST", noText.get("code").asText());
+    assertVersions(noText);
+  }
+
+  @Test
+  void errorsNotTiedToAParseableCheckOmitBothVersions() throws Exception {
+    FakeChecker fake = new FakeChecker();
+    JsonNode bad = run(new Adapter(fake, 100), "{not json").get(1);
+    assertTrue(bad.get("id").isNull());
+    assertNoVersions(bad);
+    // Only one version (or a non-integer one) is malformed; the error carries neither.
+    JsonNode half = run(new Adapter(fake, 100),
+        "{\"protocol\":1,\"type\":\"check\",\"id\":\"v4\",\"docVersion\":7,\"text\":\"a\"}").get(1);
+    assertEquals("MALFORMED_REQUEST", half.get("code").asText());
+    assertEquals("v4", half.get("id").asText());
+    assertNoVersions(half);
+    JsonNode neg = run(new Adapter(fake, 100),
+        "{\"protocol\":1,\"type\":\"check\",\"id\":\"v5\",\"docVersion\":-1,\"settingsVersion\":3,\"text\":\"a\"}").get(1);
+    assertEquals("MALFORMED_REQUEST", neg.get("code").asText());
+    assertNoVersions(neg);
+    assertTrue(fake.seen.isEmpty(), "a check without valid versions never reaches the engine");
+  }
+
   @Test
   void shutdownStopsProcessingFurtherInput() throws Exception {
     FakeChecker fake = new FakeChecker();
