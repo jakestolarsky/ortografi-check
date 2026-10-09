@@ -1,9 +1,9 @@
 # engine-java — LanguageTool PL stdin/stdout adapter (phase 0 experiment)
 
 Minimal Java process around `org.languagetool:language-pl:6.8` (PLAN.md sections 2, 4, 5).
-Protocol v1 is defined by Ortografi Desktop's `contracts/v1/protocol.schema.json` (PR #8). Until
-that merges, a copy lives in `src/test/resources/contracts/` and `ProtocolContractTest` validates
-real adapter output, the shared examples and the corpus fixtures against it.
+Protocol v1 is defined by the repo's `contracts/v1/protocol.schema.json` (merged in #14).
+`ProtocolContractTest` reads it directly from `../contracts/v1/` (no copy in test resources) and
+validates real adapter output, the shared examples and the corpus fixtures against it.
 
 ## Build and test
 

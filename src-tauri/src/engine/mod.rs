@@ -1,4 +1,5 @@
 //! Engine process and queue (PLAN.md sections 4 and 5).
+pub mod locate;
 pub mod protocol;
 pub mod stale;
 pub mod supervisor;

@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - 'engine-java/**'
+      - 'contracts/v1/**'
       - 'benchmarks/sample-temporary/**'
       - '.github/workflows/engine.yml'
   workflow_dispatch:

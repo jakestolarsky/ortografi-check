@@ -5,7 +5,6 @@ on:
     branches: ['desktop/**']
   pull_request:
     paths-ignore:
-      - 'engine-java/**'
       - 'benchmarks/**'
       - 'docs/**'
       - '**/*.md'
@@ -88,3 +87,43 @@ jobs:
       - name: Rust types deserialize every example
         working-directory: contracts/rust
         run: cargo test --locked
+
+  engine-bundle:
+    name: bundled engine (stage + real-engine smoke, ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21.0.12+101.0.LTS' # same pin as engine.yml
+          cache: maven
+      - name: Linux deps for Tauri 2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Stage engine (mvn package + jlink) into src-tauri/resources/engine
+        run: scripts/prepare-engine.sh
+      - name: Size report
+        run: |
+          {
+            echo "### Staged engine (ubuntu x64)"
+            echo
+            echo '| Part | Installed |'
+            echo '|---|---|'
+            for p in runtime lib ortografi-engine.jar; do echo "| $p | $(du -sh src-tauri/resources/engine/$p | cut -f1) |"; done
+            echo "| total | $(du -sh src-tauri/resources/engine | cut -f1) |"
+            echo "| total tar.gz | $(tar czf - -C src-tauri/resources engine | wc -c | awk '{printf "%.1fM", $1/1048576}') |"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Frontend dist placeholder (tauri::generate_context! needs ../build)
+        run: mkdir -p build && echo '<!doctype html>' > build/index.html
+      - name: Supervisor + locate against the real bundled engine (p0-0003 -> 4..4 ",")
+        working-directory: src-tauri
+        env:
+          ORTOGRAFI_TEST_RESOURCE_DIR: ${{ github.workspace }}/src-tauri/resources
+        run: cargo test --locked --test real_engine --test locate
