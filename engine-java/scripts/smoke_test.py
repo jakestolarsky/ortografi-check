@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """End-to-end smoke test of the stdin/stdout adapter process (protocol v1).
 
-Starts `<java> -jar target/ortografi-engine-*.jar`, checks `ready`, a Unicode case (NFD Polish,
+Starts `<java> -jar target/ortografi-engine.jar`, checks `ready`, a Unicode case (NFD Polish,
 emoji, ZWJ, CRLF), the TEMPORARY samples, a protocol error, and a clean exit on `shutdown`.
 With --compare-java it runs the same requests on a second runtime (e.g. the full JDK) and
 fails unless every issue list is identical. Writes nothing but a report to stdout.
 
   python scripts/smoke_test.py --java target/runtime/bin/java [--compare-java $JAVA_HOME/bin/java]
 """
-import argparse, glob, json, os, pathlib, subprocess, sys, time
+import argparse, json, os, pathlib, subprocess, sys, time
 
 HERE = pathlib.Path(__file__).resolve().parent.parent
 SAMPLES = HERE.parent / "benchmarks" / "sample-temporary"
@@ -22,7 +22,7 @@ def resolve(java):
 
 
 def run(java, texts):
-    jar = sorted(glob.glob(str(HERE / "target" / "ortografi-engine-*.jar")))[0]
+    jar = str(HERE / "target" / "ortografi-engine.jar")
     t0 = time.perf_counter()
     p = subprocess.Popen([resolve(java), "-jar", jar], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)

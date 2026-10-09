@@ -20,7 +20,7 @@ class EngineManifestTest {
   private static final String SHA_ABC = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 
   private static Path tree(Path dir) throws Exception {
-    Files.writeString(dir.resolve("ortografi-engine-1.2.3.jar"), "abc");
+    Files.writeString(dir.resolve("ortografi-engine.jar"), "abc");
     Files.createDirectories(dir.resolve("lib"));
     Files.writeString(dir.resolve("lib/language-pl-6.8.jar"), "pl");
     Files.writeString(dir.resolve("lib/languagetool-core-6.8.jar"), "core");
@@ -41,7 +41,7 @@ class EngineManifestTest {
     assertEquals(1, m.get("manifestVersion").asInt());
     assertEquals(1, m.get("protocol").asInt());
     assertEquals("1.2.3", m.at("/adapter/version").asText());
-    assertEquals("ortografi-engine-1.2.3.jar", m.at("/adapter/jar").asText());
+    assertEquals("ortografi-engine.jar", m.at("/adapter/jar").asText(), "the name Desktop installs; the version is in adapter.version");
     assertEquals("6.8", m.at("/languageTool/version").asText());
     assertEquals("Eclipse Adoptium", m.at("/runtime/vendor").asText());
     assertEquals("Temurin-21.0.12.1+1", m.at("/runtime/vendorVersion").asText());
@@ -53,9 +53,9 @@ class EngineManifestTest {
     List<String> names = new ArrayList<>();
     files.fieldNames().forEachRemaining(names::add);
     assertEquals(List.of("lib/language-pl-6.8.jar", "lib/languagetool-core-6.8.jar",
-        "ortografi-engine-1.2.3.jar", "runtime/bin/java", "runtime/release"), names,
+        "ortografi-engine.jar", "runtime/bin/java", "runtime/release"), names,
         "sorted, forward slashes, only the JAR, lib/ and runtime/");
-    assertEquals(SHA_ABC, files.get("ortografi-engine-1.2.3.jar").asText());
+    assertEquals(SHA_ABC, files.get("ortografi-engine.jar").asText());
     for (JsonNode h : files) assertTrue(h.asText().matches("[0-9a-f]{64}"), h.asText());
   }
 
@@ -74,6 +74,9 @@ class EngineManifestTest {
   void failsWithoutAJarOrRuntime(@TempDir Path dir) throws Exception {
     assertThrows(IllegalStateException.class, () -> EngineManifest.build(dir, "1", "6.8", RUNTIME::get));
     Files.writeString(dir.resolve("ortografi-engine-1.jar"), "x");
+    assertThrows(IllegalStateException.class, () -> EngineManifest.build(dir, "1", "6.8", RUNTIME::get),
+        "a versioned JAR name is not the shipped name");
+    Files.writeString(dir.resolve("ortografi-engine.jar"), "x");
     assertThrows(IllegalStateException.class, () -> EngineManifest.build(dir, "1", "6.8", RUNTIME::get));
   }
 

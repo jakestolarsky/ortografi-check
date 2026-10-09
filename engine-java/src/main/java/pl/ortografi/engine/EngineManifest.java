@@ -20,7 +20,7 @@ import java.util.stream.Stream;
  * (the adapter JAR, {@code lib/*.jar} and {@code runtime/**}). Run it with the jlinked runtime's
  * own {@code java}, so the runtime fields describe that runtime:
  *
- * <p>{@code target/runtime/bin/java -cp "target/ortografi-engine-<v>.jar:target/lib/*"
+ * <p>{@code target/runtime/bin/java -cp "target/ortografi-engine.jar:target/lib/*"
  * pl.ortografi.engine.EngineManifest target}
  *
  * <p>The output has no timestamps, so the same inputs give the same file.
@@ -28,6 +28,8 @@ import java.util.stream.Stream;
 public final class EngineManifest {
 
   static final String FILE = "engine-manifest.json";
+  /** The adapter JAR's name in the build output and in the installed app (no version in it). */
+  static final String JAR = "ortografi-engine.jar";
   private static final ObjectMapper JSON = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
   private EngineManifest() {}
@@ -38,12 +40,8 @@ public final class EngineManifest {
 
   static ObjectNode build(Path dir, String adapterVersion, String ltVersion, Function<String, String> sys)
       throws IOException {
-    Path jar;
-    try (Stream<Path> s = Files.list(dir)) {
-      List<Path> jars = s.filter(p -> p.getFileName().toString().matches("ortografi-engine-.*\\.jar")).toList();
-      if (jars.size() != 1) throw new IllegalStateException("expected one ortografi-engine-*.jar in " + dir + ": " + jars);
-      jar = jars.get(0);
-    }
+    Path jar = dir.resolve(JAR);
+    if (!Files.isRegularFile(jar)) throw new IllegalStateException("no " + JAR + " in " + dir);
     if (!Files.isDirectory(dir.resolve("runtime"))) throw new IllegalStateException("no runtime/ in " + dir);
 
     List<Path> files = new ArrayList<>(List.of(jar));

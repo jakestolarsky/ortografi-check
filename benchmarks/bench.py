@@ -18,7 +18,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 JAVA = os.path.join(os.environ["JAVA_HOME"], "bin", "java")
 SAMPLES = {n: (ROOT / "benchmarks/sample-temporary" / f"pl-{n}.txt").read_text("utf-8") for n in ("1k", "10k")}
 TEXT_50K = (ROOT / "benchmarks/sample-temporary/pl-50k.txt").read_text("utf-8")
-ADAPTER_CP = f"{ROOT}/engine-java/target/ortografi-engine-0.0.1-phase0.jar"
+ADAPTER_CP = f"{ROOT}/engine-java/target/ortografi-engine.jar"
 SERVER_CP = {
     "http-minimal": f"{ROOT}/benchmarks/http-server-6.8/target/lib/*",
     "http-full": f"{ROOT}/benchmarks/http-server-6.8/full/target/lib/*",

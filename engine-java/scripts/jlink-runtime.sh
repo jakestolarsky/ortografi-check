@@ -24,7 +24,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-JAR=$(ls target/ortografi-engine-*.jar | head -n 1)
+JAR=target/ortografi-engine.jar
 case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) SEP=';' ;; *) SEP=':' ;; esac
 MODULES=$(grep -v '^\s*$' runtime-modules.txt | tr -d '\r' | paste -sd, -)
 
