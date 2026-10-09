@@ -150,7 +150,7 @@ class LanguageToolCheckerTest {
     List<Issue> issues = new NormalizingChecker(checker).check(text);
     Issue i = onlyIssueCovering(issues, text, word + "a");
     assertEquals("spelling", i.category());
-    assertTrue(i.replacements().contains("żółwia"), i::toString);
+    assertTrue(i.replacements().contains("żółwia"), i::toString); // edited word: NFC
     onlyIssueCovering(issues, text, "kotaa");
     assertOffsetsAreValidUtf16(text, issues);
   }
@@ -181,6 +181,28 @@ class LanguageToolCheckerTest {
     String t = "Musimy cofnąć się do tyłu.";
     Issue i = onlyIssueCovering(checker.check(t), t, "cofnąć się do tyłu");
     assertEquals("style", i.category());
+  }
+
+  @Test
+  void normalizingEngineCommaFixKeepsDecomposedLettersOfTheOriginal() throws Exception {
+    String text = "Wiem z\u0307e c\u0301ma lubi s\u0301wiatło.";
+    List<Issue> issues = new NormalizingChecker(checker).check(text);
+    assertEquals(1, issues.size(), issues::toString);
+    Issue i = issues.get(0);
+    String fixed = text.substring(0, i.start()) + i.replacements().get(0) + text.substring(i.end());
+    assertEquals("Wiem, z\u0307e c\u0301ma lubi s\u0301wiatło.", fixed);
+  }
+
+  @Test
+  void apostropheIemFormOfSilentENamesIsNotFlaggedButWrongFormsAre() throws Exception {
+    for (String t : new String[] {"Spotkałem się z Mike'iem na kawie.", "Rozmawiałem z Clarke’iem wczoraj."}) {
+      assertEquals(List.of(), checker.check(t), t);
+    }
+    String wrong = "Spotkałem się z Mike'm na kawie.";
+    Issue i = onlyIssueCovering(checker.check(wrong), wrong, "Mike'm");
+    assertEquals("IMIONA_Z_APOSTROFAMI", i.ruleId());
+    String other = "Porozmawiajmy o John'ie Lennonie.";
+    assertEquals("IMIONA_Z_APOSTROFAMI", onlyIssueCovering(checker.check(other), other, "John'ie").ruleId());
   }
 
   @Test

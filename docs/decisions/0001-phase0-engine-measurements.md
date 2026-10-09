@@ -132,7 +132,9 @@ These are candidates for exclusion in phase 5, **only** after corpus checks.
    engine an NFC *copy* and maps every range back to the original UTF-16 offsets via
    `NfcText` (segments = starter + combining marks; ranges never split a surrogate pair or
    a letter from its marks). The request text is never altered (PLAN.md section 4).
-   Replacements are returned in NFC, so accepting a fix stores that fragment as NFC.
+   Replacements are re-expressed for the original range: words the fix doesn't touch keep
+   their form, and an edited word is NFC (so "Wiem że" with a decomposed "że" gets
+   "Wiem, że" with "że" still decomposed). Found by the dev split's p1-0239.
    The timings above were taken before this layer; it adds an `isNormalized` scan
    (microseconds for already-NFC text) and a per-segment pass only for non-NFC text.
 7. LanguageTool messages contain inline markup (`<suggestion>…</suggestion>`); the UI must
@@ -211,6 +213,20 @@ engine's list, e.g. on upgrade.
 Review: OrBity approved the 12-entry list ([PR #2 comment](https://github.com/jakestolarsky/ortografi-check/pull/2#issuecomment-6086442770)).
 Borderline entries left as spelling (also approved): `mięli` → `mieli`, `lekażów` → `lekarzy`
 (typo plus wrong form), `dojąć` → `dojść`, `sposobowy` → `sposoby`.
+
+### Suppressed false positives
+
+`FalsePositiveFilter` drops engine matches that are known to be wrong. Each entry covers a
+class of forms (rule ID plus a pattern on the matched NFC text) and has positive and
+negative tests. There is one entry so far:
+
+- `IMIONA_Z_APOSTROFAMI`: in LT 6.8, the "Locke, Braque" sub-rule (`…(c?ke|que)` + apostrophe
+  + `(i?e)?m` → `…kiem`) also flags the correct form `Mike'iem` (corpus p1-0222, confirmed
+  by OrBity). The filter accepts only a capitalised name ending in `-ke`/`-que` + `'iem`/`’iem`.
+  `Mike'm` and `Mike'em` are still flagged, and so is every other sub-rule (`John'ie`,
+  `Bentley'u`, `Andrew'em`). On dev it changes only p1-0222. Open question: the filter also
+  accepts `Locke'iem` and `Braque'iem`, while the rule suggests `Lockiem`/`Brakiem`. A Polish
+  reviewer should confirm that both spellings are acceptable for these names.
 
 ## Open items
 

@@ -23,17 +23,19 @@ public final class NfcText {
   private final String normalized;
   private final int[] startMap; // normalized offset -> original offset, for range starts
   private final int[] endMap; // normalized offset -> original offset, for range ends
+  private final int[] toNorm; // original offset -> normalized offset (segment starts; interior -> start)
 
-  private NfcText(String original, String normalized, int[] startMap, int[] endMap) {
+  private NfcText(String original, String normalized, int[] startMap, int[] endMap, int[] toNorm) {
     this.original = original;
     this.normalized = normalized;
     this.startMap = startMap;
     this.endMap = endMap;
+    this.toNorm = toNorm;
   }
 
   public static NfcText of(String original) {
     if (Normalizer.isNormalized(original, Normalizer.Form.NFC)) {
-      return new NfcText(original, original, null, null);
+      return new NfcText(original, original, null, null, null);
     }
     List<int[]> segs = segments(original); // {origStart, origEnd}
     StringBuilder norm = new StringBuilder(original.length());
@@ -52,10 +54,12 @@ public final class NfcText {
     int n = full.length();
     int[] startMap = new int[n + 1];
     int[] endMap = new int[n + 1];
+    int[] toNorm = new int[original.length() + 1];
     int x = 0;
     for (int k = 0; k < segs.size(); k++) {
       int a = segs.get(k)[0], b = segs.get(k)[1];
       int len = parts.get(k).length();
+      for (int o = a; o < b; o++) toNorm[o] = x;
       startMap[x] = a;
       endMap[x] = a;
       for (int p = x + 1; p < x + len; p++) {
@@ -66,7 +70,17 @@ public final class NfcText {
     }
     startMap[n] = original.length();
     endMap[n] = original.length();
-    return new NfcText(original, full, startMap, endMap);
+    toNorm[original.length()] = n;
+    return new NfcText(original, full, startMap, endMap, toNorm);
+  }
+
+  /** The original-form clusters of {@code s} (starter + its combining marks), in order. */
+  static List<String> clusters(String s) {
+    List<String> out = new ArrayList<>();
+    for (int[] seg : segments(s)) {
+      if (seg[1] > seg[0]) out.add(s.substring(seg[0], seg[1]));
+    }
+    return out;
   }
 
   private static List<int[]> segments(String s) {
@@ -117,6 +131,11 @@ public final class NfcText {
 
   public boolean changed() {
     return startMap != null;
+  }
+
+  /** Normalized offset of an original offset; offsets inside a cluster map to its start. */
+  public int toNormalized(int originalOffset) {
+    return toNorm == null ? originalOffset : toNorm[originalOffset];
   }
 
   /** Original offset for a range starting at normalized offset {@code i}. */
