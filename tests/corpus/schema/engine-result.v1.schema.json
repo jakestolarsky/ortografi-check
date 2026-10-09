@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jakestolarsky/ortografi-check/tests/corpus/schema/engine-result.v1.schema.json",
+  "title": "Engine result line for the corpus scorer, format v1",
+  "description": "One line per corpus example. Offsets are UTF-16 code units into the corpus text, end exclusive. Extra fields are allowed and ignored.",
+  "type": "object",
+  "required": ["schema_version", "id", "status", "issues"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "id": { "type": "string" },
+    "status": { "enum": ["complete", "incomplete", "error"] },
+    "engine": { "type": "string" },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["start", "end"],
+        "properties": {
+          "start": { "type": "integer", "minimum": 0 },
+          "end": { "type": "integer", "minimum": 0 },
+          "category": { "type": "string" },
+          "rule_id": { "type": "string" },
+          "message": { "type": "string" },
+          "replacements": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}
