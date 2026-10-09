@@ -1,7 +1,7 @@
 # Building on macOS
 
-Tested paths and commands are those in this repository. All commands run from the repo root
-unless noted.
+Commands and paths match this repository (checked on Linux; not yet run on a Mac). Run them
+from the repo root unless noted.
 
 ## 1. Tools
 
