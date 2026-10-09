@@ -16,7 +16,13 @@ Proposed by Ortografi UI, agreed with Desktop (Rust/IPC) and Engine.
 - An error answering a `check` carries that check's `id`, **`docVersion` and `settingsVersion` together**. Receivers drop errors and results whose versions are stale. Errors not tied to a parseable check (`id: null`) omit both.
 - Tauri IPC passes these messages **unchanged** to the UI (no wrapping).
 
-## Layout
+## Edit conventions
+
+Each issue describes the **smallest edit** on the **original** text, with offsets in UTF-16 code units (`end` exclusive). Applying a fix means replacing `text[start..end]` with the chosen replacement.
+
+- **Missing comma:** a zero-length insertion, `start == end`, with replacement `","`. Example: corpus p0-0003 `Wiem że to…` has `4..4` with `","`.
+- **Unnecessary comma:** a deletion covering only the comma, `end = start + 1`, with replacement `""`. The following space stays. Example: `Był szybki, jak wiatr.` becomes `Był szybki jak wiatr.`; corpus p0-0043 marks `10..11`.
+
 
 | Path | What |
 |---|---|
