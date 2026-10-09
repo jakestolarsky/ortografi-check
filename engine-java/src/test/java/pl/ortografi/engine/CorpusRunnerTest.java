@@ -45,7 +45,7 @@ class CorpusRunnerTest {
     assertEquals("z\u0307o\u0301łw", text.substring(i.get("start").asInt(), i.get("end").asInt()));
     assertEquals("spelling", i.get("category").asText());
     assertEquals("FAKE", i.get("rule_id").asText());
-    assertEquals("żółwie", i.get("replacements").get(0).asText());
+    assertEquals("żółwie", i.get("replacements").get(0).asText()); // edited word: NFC
     assertTrue(i.has("message"));
     assertEquals("TYPOS", i.get("engine_category").asText());
     assertEquals(0, out.get(1).get("issues").size());

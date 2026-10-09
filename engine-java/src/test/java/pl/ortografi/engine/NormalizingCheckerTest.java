@@ -49,8 +49,8 @@ class NormalizingCheckerTest {
     for (Issue i : issues) {
       assertEquals("z\u0307o\u0301łw", original.substring(i.start(), i.end()));
     }
-    // The suggestion keeps the user's decomposed letters; only the edit itself is new text.
-    assertEquals(List.of("z\u0307o\u0301łwie"), issues.get(0).replacements());
+    // The edited word is new text and is written in NFC (corpus convention for fixes).
+    assertEquals(List.of("żółwie"), issues.get(0).replacements());
     assertEquals("FAKE", issues.get(0).ruleId());
   }
 
@@ -122,6 +122,20 @@ class NormalizingCheckerTest {
     assertEquals(List.of(" i mleko z\u0307"), i.replacements());
     Issue d = new NormalizingChecker(oneIssue("ż", "")).check(original).get(0);
     assertEquals(List.of(""), d.replacements());
+  }
+
+  @Test
+  void editedWordIsWrittenWholeInNfcWhileUntouchedWordsKeepTheirForm() throws Exception {
+    // Capitalising a decomposed word: the fixed word is NFC, never a mix like "Gdan\u0301sk".
+    String original = "gdan\u0301sk lez\u0307y nad morzem.";
+    Issue i = new NormalizingChecker(oneIssue("gdańsk leży", "Gdańsk leży")).check(original).get(0);
+    assertEquals(List.of("Gdańsk lez\u0307y"), i.replacements());
+    Issue w = new NormalizingChecker(oneIssue("gdańsk", "Gdańsk")).check(original).get(0);
+    assertEquals(List.of("Gdańsk"), w.replacements());
+    // A fix inside a decomposed word replaces that whole word with its NFC form.
+    String k = "Ta ksia\u0328zka lez\u0307y.";
+    Issue x = new NormalizingChecker(oneIssue("książka", "książka")).check(k).get(0);
+    assertEquals(List.of("książka"), x.replacements());
   }
 
   @Test

@@ -150,7 +150,7 @@ class LanguageToolCheckerTest {
     List<Issue> issues = new NormalizingChecker(checker).check(text);
     Issue i = onlyIssueCovering(issues, text, word + "a");
     assertEquals("spelling", i.category());
-    assertTrue(i.replacements().contains("żółwia"), i::toString);
+    assertTrue(i.replacements().contains("żółwia"), i::toString); // edited word: NFC
     onlyIssueCovering(issues, text, "kotaa");
     assertOffsetsAreValidUtf16(text, issues);
   }
