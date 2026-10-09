@@ -206,6 +206,18 @@ class LanguageToolCheckerTest {
   }
 
   @Test
+  void reformLowercasePossessivesFromNamesAreNotFlaggedButTyposStillAre() throws Exception {
+    for (String t : new String[] {"Na półce leży zosina lalka.", "To jest tomkowy rower.",
+        "Szukam kasinego psa.", "Wzięła agnieszczyną torbę.", "Zosina lalka leży na półce."}) {
+      assertEquals(List.of(), checker.check(t), t);
+    }
+    String town = "Latem pojechaliśmy do krakowa pociągiem."; // corpus p0-0028
+    assertEquals("MORFOLOGIK_RULE_PL_PL", onlyIssueCovering(checker.check(town), town, "krakowa").ruleId());
+    String typo = "Na półce leży szkolina lalka.";
+    assertEquals("MORFOLOGIK_RULE_PL_PL", onlyIssueCovering(checker.check(typo), typo, "szkolina").ruleId());
+  }
+
+  @Test
   void emptyTextHasNoIssues() throws Exception {
     assertEquals(List.of(), checker.check(""));
   }

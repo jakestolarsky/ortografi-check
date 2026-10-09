@@ -66,10 +66,18 @@ def main():
         f = SAMPLES / f"pl-{n}.txt"
         if f.exists(): texts[n] = f.read_text(encoding="utf-8")
     ready_ms, res = run(a.java, texts)
-    got = {utf16(UNICODE, s, e): (rule, cat) for s, e, rule, cat, _ in res["unicode"]}
-    expect = {"kotaa": "spelling", "Wiem że": "punctuation", "Poszłem": "grammar", "np": "punctuation"}
-    for frag, cat in expect.items():
+    # Replacements: key = covered text. Insertions (start == end, protocol 1): key = "^" + the
+    # text just before the point, so "Wiem^" is a comma inserted after "Wiem".
+    got = {}
+    for s, e, rule, cat, reps in res["unicode"]:
+        key = utf16(UNICODE, s, e) if e > s else utf16(UNICODE, max(0, s - 4), s) + "^"
+        got[key] = (rule, cat, reps)
+    expect = {"kotaa": ("spelling", None), "Wiem^": ("punctuation", ","), "Poszłem": ("grammar", None),
+              ", np^": ("punctuation", ".")}
+    for frag, (cat, ins) in expect.items():
         assert frag in got and got[frag][1] == cat, f"expected {frag!r} as {cat}; got {got}"
+        if ins is not None:
+            assert got[frag][2] == [ins], f"expected insertion {ins!r} at {frag!r}; got {got}"
     assert not any("Za" in k for k in got), f"NFD 'Zażółć' must not be flagged: {got}"
     print(f"OK {a.java}: ready in {ready_ms:.0f} ms; issues " + ", ".join(f"{k}={len(v)}" for k, v in res.items()))
     if a.compare_java:

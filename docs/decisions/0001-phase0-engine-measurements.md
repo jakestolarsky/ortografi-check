@@ -224,17 +224,74 @@ negative tests. There is one entry so far:
   + `(i?e)?m` → `…kiem`) also flags the correct form `Mike'iem` (corpus p1-0222, confirmed
   by OrBity). The filter accepts only a capitalised name ending in `-ke`/`-que` + `'iem`/`’iem`.
   `Mike'm` and `Mike'em` are still flagged, and so is every other sub-rule (`John'ie`,
-  `Bentley'u`, `Andrew'em`). On dev it changes only p1-0222. Open question: the filter also
-  accepts `Locke'iem` and `Braque'iem`, while the rule suggests `Lockiem`/`Brakiem`. A Polish
-  reviewer should confirm that both spellings are acceptable for these names.
+  `Bentley'u`, `Andrew'em`). On dev it changes only p1-0222. The filter also accepts
+  `Locke'iem` and `Braque'iem` (the rule suggests `Lockiem`/`Brakiem`). OrBity approved this:
+  `Mike'iem`, `Locke'iem` and `Braque'iem` are correct ([PR #5 comment](https://github.com/jakestolarsky/ortografi-check/pull/5#issuecomment-6087694951)).
+
+## Memory (phase 1, 2026-10-09)
+
+Measured on the box (Linux x64, 8 vCPU, Temurin 21.0.12.1+1) with `benchmarks/mem_sweep.py`.
+For each config, one process ran 1 + 5 warm-up + 20 timed 50k checks, interleaved with 1k
+checks; peak = VmHWM. Every config returned exactly the same issues. Raw data:
+`benchmarks/results/memory-sweep-linux-x64.json`.
+
+Native Memory Tracking showed where the memory goes: the Java heap committed up to `-Xmx`
+(252 of 318 MiB) and was mostly garbage. Code cache, metaspace and CDS were small. So the heap cap
+is the lever.
+
+| Config ("slim" = `-Xss512k -XX:ReservedCodeCacheSize=48m -XX:MaxMetaspaceSize=96m`) | Peak RSS | 50k p50 / p95 ms | 1k p50 / p95 ms |
+|---|---|---|---|
+| phase 0: `-Xmx256m -XX:+UseSerialGC` | 396 | 1370 / 1514 | 31.6 / 38.1 |
+| `-Xmx256m` + slim | 379 | 1365 / 1565 | 32.4 / 36.2 |
+| `-Xmx192m` + slim | 319 | 1354 / 1474 | 31.5 / 38.5 |
+| `-Xmx160m` + slim | 290 | 1366 / 1464 | 33.0 / 36.8 |
+| **`-Xmx128m` + slim (chosen)** | **249** | **1375 / 1464** | **32.9 / 35.5** |
+| `-Xmx112m` + slim | 248 | 1397 / 1499 | 34.0 / 38.4 |
+| `-Xmx96m` + slim | 224 | 1463 / 1566 | 34.7 / 48.0 |
+| `-Xmx160m` + slim + C1 only (`TieredStopAtLevel=1`) | 227 | 2403 / 2561 | 56.7 / 67.2 |
+| `-Xmx128m` + slim + AppCDS | 265 | 1398 / 1511 | 33.5 / 35.4 |
+
+- **Chosen: `-Xmx128m -XX:+UseSerialGC` + slim**, pinned in `engine-java/jvm-options.txt` and
+  baked into the jlink runtime with `--add-options`. `jlink-runtime.sh` fails if the runtime does
+  not report it, and CI smoke-tests that runtime against the full JDK with identical results.
+- **Headroom:** a single check at the 100k protocol limit succeeds at 128m, 112m and 96m (462
+  issues, ~4.2–4.4 s, peak ≤ 233 MiB). The live set is far below 128 MiB.
+- Below 128m, latency starts to rise (96m: +7% at 50k, 1k p95 48 ms). C1-only saves memory but
+  costs +75% latency, so it is rejected.
+- **AppCDS:** startup 966 ms vs 1163 ms (ready), but +17 MiB RSS. It is not a memory win; keep
+  it as a startup option for later.
+- **Chunking by paragraph (experiment, not shipped):** sending the 50k sample as 125 paragraph
+  checks gave a peak of 221 MiB (−28 MiB), with the same latency and the same 231 issues. Not
+  worth the risk to cross-paragraph rules now that the flags give 100 MiB of headroom.
+
+## Held-out milestone run (phase 1, 2026-10-09 21:59 CEST)
+
+One run on the held-out split (`tests/corpus/data/heldout/phase1-heldout.jsonl`, 94 examples,
+36 clean, scoring 1.2) with the engine at PR #10 head `6ecaecb`. **No rule or code was changed
+because of these results.** All tuning used dev only; held-out had not been run before.
+
+| Category | Held-out P / R / F1 (overlap) | Dev P / R / F1 (overlap) | Held-out F1 (exact) | Dev F1 (exact) |
+|---|---|---|---|---|
+| grammar | 100% / 40.0% / 57.1% (2 TP, 0 FP, 3 FN) | 85.7% / 46.2% / 60.0% | 50.0% | 40.0% |
+| punctuation | 100% / 81.8% / 90.0% | 100% / 82.7% / 90.5% | 66.7% | 44.7% |
+| spelling | 100% / 90.6% / 95.1% | 98.2% / 76.7% / 86.2% | 95.1% | 84.0% |
+| **overall** | **100% / 83.1% / 90.7%** (49 TP, 0 FP, 10 FN) | 98.1% / 76.1% / 85.7% | **81.5%** (P 89.8%, R 74.6%) | 65.3% |
+
+- Clean-sentence false positives: **0/36 (0.0%)** in both modes (dev: 0/82).
+- Release-critical failures: **none** under overlap. Under exact: p1-0161 and p1-0165. Both are
+  extra commas that the engine reports on a wider span (`PODMIOT_ORZECZENIE` 9..15 → " lubi";
+  `COFANIE_PRZECINKA` 0..8 → "Mimo że"). This is the same class as dev's p0-0001/p1-0160
+  (deletion spans are not narrowed).
+- Strict category (overlap): P 94.0% / R 79.7% / F1 86.2% (dev 81.3%). `excluded_categories`:
+  none predicted on held-out.
+- Held-out is small (59 scored issues; grammar has 5). Held-out is not lower than dev here, but
+  that does not prove generalisation: a single example moves grammar F1 by ~10 points.
 
 ## Open items
 
-- **Memory at 50k:** with `-Xmx256m -XX:+UseSerialGC` the adapter's peak RSS is **379 MiB** on
-  a 50k-unit text. That is over the **350 MiB** goal for the *whole app* (WebView + Rust +
-  Java; PLAN.md section 11) before the WebView and Rust are even counted. Options to measure:
-  smaller heap or a different GC, a lower automatic-analysis limit, or chunked analysis
-  (only if it keeps wider-context rules intact).
+- **Memory at 50k: resolved on Linux (phase 1).** See "Memory (phase 1)" below: peak RSS is now
+  **249 MiB** at 50k (was 379–396 MiB) with unchanged latency. Still to confirm on macOS and
+  Windows reference hardware, where the whole-app budget (WebView + Rust) is measured.
 - **No macOS Intel coverage:** CI's `macos-latest` runner and all measurements so far are
   arm64 or Linux x64. A separate Intel package is planned (PLAN.md section 12), so it needs
   its own CI runner or hardware run.
@@ -247,7 +304,7 @@ input. It also stays ahead at 50k-unit texts. **The stdin/stdout adapter is the 
 option.** CI (`.github/workflows/engine.yml`) builds and tests it, and smoke-tests it on the
 jlinked runtime, on ubuntu, macOS and Windows. Still pending before the final decision:
 timing and memory runs on macOS ARM/Intel and Windows reference hardware, ≥30 cold launches
-there, and the 50k memory question above.
+there (including memory with the phase-1 flags).
 
 ## Reproduce
 

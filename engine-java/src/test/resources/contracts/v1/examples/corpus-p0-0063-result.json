@@ -1,0 +1,1 @@
+{"protocol":1,"type":"result","id":"corpus-p0-0063","docVersion":3,"settingsVersion":1,"engineVersion":"6.8","status":"complete","analysisMs":10,"issues":[{"start":9,"end":14,"ruleId":"MORFOLOGIK_RULE_PL_PL","category":"spelling","engineCategory":"TYPOS","issueType":"misspelling","message":"Prawdopodobny błąd pisowni.","replacements":["żaba"]}]}
