@@ -1,0 +1,51 @@
+# corpus tests/corpus/data/phase0-starter.jsonl @ corpus/phase0 a0a9b62, engine adapter (NFC) languagetool-pl 6.8
+
+## score.mjs (default: overlap)
+category     TP  FP  FN    prec  recall      F1    top1     any  cat≠
+grammar       1   0   2  100.0%   33.3%   50.0%  100.0%  100.0%     1
+punctuation  15   0   3  100.0%   83.3%   90.9%   80.0%   80.0%     2
+spelling     19   0   4  100.0%   82.6%   90.5%   84.2%  100.0%     0
+OVERALL      35   0   9  100.0%   79.5%   88.6%   82.9%   91.4%     3
+
+examples: 67  (match=overlap)
+clean set: 0/24 examples with a false positive (0.0%)
+release-critical failures: p0-0004
+Scores describe this corpus only, not Polish in general.
+
+## score.mjs --strict-category
+category     TP  FP  FN    prec  recall      F1    top1     any  cat≠
+grammar       0   0   3     n/a    0.0%    0.0%     n/a     n/a     0
+other         0   1   0    0.0%     n/a    0.0%     n/a     n/a     0
+punctuation  13   0   5  100.0%   72.2%   83.9%   76.9%   76.9%     0
+spelling     19   2   4   90.5%   82.6%   86.4%   84.2%  100.0%     0
+OVERALL      32   3  12   91.4%   72.7%   81.0%   81.3%   90.6%     0
+
+examples: 67  (match=overlap, strict-category)
+clean set: 0/24 examples with a false positive (0.0%)
+release-critical failures: p0-0004
+Scores describe this corpus only, not Polish in general.
+
+## score.mjs --match exact
+category     TP  FP  FN    prec  recall      F1    top1     any  cat≠
+grammar       1   0   2  100.0%   33.3%   50.0%  100.0%  100.0%     1
+other         0   1   0    0.0%     n/a    0.0%     n/a     n/a     0
+punctuation   2  11  16   15.4%   11.1%   12.9%  100.0%  100.0%     0
+spelling     19   1   4   95.0%   82.6%   88.4%   84.2%  100.0%     0
+OVERALL      22  13  22   62.9%   50.0%   55.7%   86.4%  100.0%     1
+
+examples: 67  (match=exact)
+clean set: 0/24 examples with a false positive (0.0%)
+release-critical failures: p0-0001, p0-0003, p0-0004
+Scores describe this corpus only, not Polish in general.
+
+## raw engine WITHOUT NFC normalization (comparison only)
+category     TP  FP  FN    prec  recall      F1    top1     any  cat≠
+grammar       1   0   2  100.0%   33.3%   50.0%  100.0%  100.0%     1
+punctuation  15   0   3  100.0%   83.3%   90.9%   80.0%   80.0%     2
+spelling     19   5   4   79.2%   82.6%   80.9%   84.2%  100.0%     0
+OVERALL      35   5   9   87.5%   79.5%   83.3%   82.9%   91.4%     3
+
+examples: 67  (match=overlap)
+clean set: 1/24 examples with a false positive (4.2%): p0-0062
+release-critical failures: p0-0004
+Scores describe this corpus only, not Polish in general.

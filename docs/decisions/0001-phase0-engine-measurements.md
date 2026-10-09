@@ -1,6 +1,7 @@
 # 0001 — Phase 0: LanguageTool PL engine, stdin/stdout adapter vs official HTTP server
 
-Status: **first measurement, not a decision yet.** Linux x64 only, TEMPORARY sample, shared
+Status: **adapter is the leading option**, pending macOS/Windows runs and 50k-unit texts
+(not yet a final decision). Linux x64 only, TEMPORARY sample, shared
 cloud VM. macOS/Windows, the quality corpus and the 30-launch protocol on reference hardware
 are still to come (PLAN.md sections 2, 11, 15).
 
@@ -14,7 +15,7 @@ are still to come (PLAN.md sections 2, 11, 15).
 | Engine | `org.languagetool:language-pl:6.8` (+ `languagetool-core:6.8`) from Maven Central |
 | Adapter | `engine-java/` — JSON lines over stdin/stdout, one `JLanguageTool` instance |
 | HTTP reference | Official `org.languagetool.server.HTTPServer` from `languagetool-server:6.8`. No 6.8 ZIP exists on languagetool.org (latest listed ZIP is 6.6; `LanguageTool-stable.zip` is dated 2025-03-27), so the server is assembled from Maven Central (`benchmarks/http-server-6.8/`). |
-| HTTP "minimal" | `language-all` excluded, `language-pl` added. The server cannot start with PL alone: its static `CommonWordsDetector` hard-requires `es`, `ca`, `pt` → those three modules added. |
+| HTTP "minimal" | `language-all` excluded, `language-pl` added. **The server cannot start with PL alone**: its static `CommonWordsDetector` hard-requires the `es`, `ca` and `pt` modules (`ExceptionInInitializerError` otherwise), so those three extra languages are bundled too. |
 | HTTP "full" | `languagetool-server:6.8` as published (pulls `language-all`) |
 | Sample | `benchmarks/sample-temporary/` — **TEMPORARY**, unannotated; 1,089 and 10,453 UTF-16 units |
 | Harness | `benchmarks/bench.py` (raw data: `benchmarks/results/phase0-linux-x64.json`) |
@@ -63,10 +64,10 @@ These are candidates for exclusion in phase 5, **only** after corpus checks.
 
 ## Observations
 
-1. **Warm latency:** the adapter is ~105–130 ms faster per request. Transport is not the
-   cause (`/v2/languages` answers in ~1 ms); the server's own log reports ~97 ms "Handled
-   request" even for a 4-word sentence, i.e. fixed server-side work per check. Not
-   investigated further (could be configurable).
+1. **Warm latency:** the adapter is ~105–130 ms faster per request. The HTTP server has a
+   **fixed ~97 ms overhead per check**: its own log reports ~97 ms "Handled request" even
+   for a 4-word sentence, while transport is not the cause (`/v2/languages` answers in
+   ~1 ms). Cause not investigated (may be configurable); it is paid on every check.
 2. **Cold start:** the HTTP port opens earlier, but the first real result arrives later
    (2.3–2.8 s vs 2.0 s). Both meet the "< 3 s" goal on this VM at p50; HTTP full misses at p95.
 3. **Memory:** default heap sizing (¼ of 16 GB) inflates RSS for both. With `-Xmx256m` +
@@ -74,25 +75,88 @@ These are candidates for exclusion in phase 5, **only** after corpus checks.
    cost of ~60 % slower analysis. The HTTP server at the same flags is ~130 MiB larger.
    The plan's 350 MiB is for the **whole app** (WebView + Rust + Java), so even 268 MiB for
    Java alone is tight; heap floor vs OOM on 50k texts must be tested.
-4. **Size:** the HTTP option cannot be trimmed to PL only (needs es/ca/pt) and carries
-   ~33 MiB more JARs than the adapter even then.
+4. **Size:** the HTTP option cannot be trimmed to PL only: it needs the extra `es`, `ca`
+   and `pt` language modules just to start, and carries ~33 MiB more JARs than the adapter
+   even then.
 5. **Budgets vs PLAN.md section 11** (this VM, TEMPORARY sample): 1k warm p95 37–40 ms
    (goal 250) ✔; 10k p95 289–342 ms (goal 800) ✔; 50k not measured yet.
 6. **Unicode:** offsets are UTF-16 in both options (emoji counted as 2 units), verified by
    tests with emoji, ZWJ sequences, non-BMP letters, Polish diacritics and combining marks.
    **Finding:** LanguageTool 6.8 flags Polish words typed in decomposed form (NFD, e.g.
-   `z` + U+0307) as misspellings, while NFC is accepted. PLAN.md forbids silent
-   normalisation; options are NFC-on-import (explicit, before versioning) or an
-   NFC-with-offset-map inside the adapter. Pinned by a characterization test.
+   `z` + U+0307) as misspellings, while NFC is accepted (pinned by a characterization
+   test on the raw engine). **Resolved in the adapter:** `NormalizingChecker` hands the
+   engine an NFC *copy* and maps every range back to the original UTF-16 offsets via
+   `NfcText` (segments = starter + combining marks; ranges never split a surrogate pair or
+   a letter from its marks). The request text is never altered (PLAN.md section 4).
+   Replacements are returned in NFC, so accepting a fix stores that fragment as NFC.
+   The timings above were taken before this layer; it adds an `isNormalized` scan
+   (microseconds for already-NFC text) and a per-segment pass only for non-NFC text.
 7. LanguageTool messages contain inline markup (`<suggestion>…</suggestion>`); the UI must
    treat it as controlled markup, never HTML (PLAN.md section 13).
 
-## Preliminary leaning (not a decision)
+## Corpus scores (phase-0 starter corpus)
 
-On Linux the adapter is faster per check, uses less memory, ships smaller and returns the
-same results, so it currently justifies its small maintenance cost. Confirm on macOS
-ARM/Intel and Windows, with the Ortografi Corpus, 50k-unit texts and ≥30 cold launches on
-reference hardware, before recording the decision.
+Corpus: `tests/corpus/data/phase0-starter.jsonl` from `corpus/phase0` @ `a0a9b62` (67
+examples, 24 clean, all `unreviewed`, all `dev`). Engine: the adapter's production checker
+(NFC layer + LanguageTool PL 6.8, default rules), via
+`java -cp "target/ortografi-engine-0.0.1-phase0.jar:target/lib/*" pl.ortografi.engine.CorpusRunner <corpus.jsonl>`
+→ engine-result JSONL v1.0 (validated with `validate.mjs --engine`: 0 errors, 0 warnings).
+Raw output: `benchmarks/results/corpus-phase0-starter.*`.
+
+| Category (default overlap match) | TP | FP | FN | Precision | Recall | F1 | Top-1 | Any |
+|---|---|---|---|---|---|---|---|---|
+| spelling | 19 | 0 | 4 | 100.0 % | 82.6 % | 90.5 % | 84.2 % | 100.0 % |
+| punctuation | 15 | 0 | 3 | 100.0 % | 83.3 % | 90.9 % | 80.0 % | 80.0 % |
+| grammar | 1 | 0 | 2 | 100.0 % | 33.3 % | 50.0 % | 100.0 % | 100.0 % |
+| **overall** | **35** | **0** | **9** | **100.0 %** | **79.5 %** | **88.6 %** | 82.9 % | 91.4 % |
+
+- Clean set: **0/24** examples with a false positive (target ≤ 2 %).
+- Release-critical failures: **p0-0004** ("Mój starszy brat, pracuje w szpitalu." —
+  comma between subject and predicate is not detected).
+- `--strict-category`: overall P 91.4 % / R 72.7 % / F1 81.0 % (3 category disagreements).
+- `--match exact`: overall F1 55.7 %; release-critical failures p0-0001, p0-0003, p0-0004.
+  LanguageTool marks comma issues over word spans (`Wiem że` → `Wiem, że`, `chleb, i`),
+  while the corpus uses the minimal span or a zero-length insertion point. The default
+  scorer accepts this through text-equivalent fixes; the UI's insertion marker (PLAN.md
+  section 6) will need a span-to-insertion-point reduction.
+- Without the NFC layer (raw engine): spelling precision 79.2 % (5 FP), clean set 1/24
+  (4.2 %, p0-0062 NFD). The normalization fixes all of those.
+- Misses (FN): reform-2026 capitalization/`nie` cases (p0-0020, -0021, -0022), street-name
+  capitalization (p0-0031), inflection/agreement (p0-0033, -0035), `dr.` abbreviation
+  (p0-0048), ASCII quotes (p0-0049), subject–predicate comma (p0-0004). LanguageTool 6.8
+  predates the 2026 rules, as expected.
+- Some missing-comma detections come from `ZDANIA_ZLOZONE`, a sentence-wide warning with no
+  replacement, not a pinpointed insertion (p0-0039, -0040, -0041).
+
+Scores describe this 67-example corpus only, not Polish in general (PLAN.md section 10).
+
+### Category mapping (one table: `CategoryMapper`, by LanguageTool category ID)
+
+| LanguageTool category IDs | Product category |
+|---|---|
+| TYPOS, SPELLING, CASING, PHONETICS, PRAWDOPODOBNE_LITEROWKI | spelling |
+| PUNCTUATION, TYPOGRAPHY | punctuation |
+| GRAMMAR, GENDER, SYNTAX, WORD_ORDER | grammar |
+| STYLE, REDUNDANCY, SEMANTICS, CONFUSED_WORDS | style (not counted as errors) |
+| MISC, NUMBERS | other |
+| unknown ID | from issue type (misspelling → spelling, grammar → grammar, typographical/whitespace → punctuation, style → style), else other |
+
+Category disagreements on the corpus (each is a matched issue, so it's a labelling question):
+- `PL_SIMPLE_REPLACE` (category PRAWDOPODOBNE_LITEROWKI) flags `Poszłem` → spelling;
+  the corpus calls it `grammar.inflection`. A category-level map can't separate this; a
+  per-rule override would be needed.
+- `SKROTY_Z_KROPKA` (`np` → `np.`) sits in LanguageTool's SPELLING category; the corpus calls
+  it `punctuation.abbreviation`. Candidate per-rule override.
+- `JEDNOSTKA_LICZBA` (`2025r.` → `2025 r.`) is in NUMBERS → other; the corpus calls it
+  `punctuation.spacing`. Mapping NUMBERS → punctuation is a candidate.
+
+## Leading option
+
+On Linux the adapter is faster per check (no fixed ~97 ms server overhead), uses less memory,
+ships smaller (no extra es/ca/pt modules), returns the same results, and now handles NFD
+input. **The stdin/stdout adapter is the leading option**, pending macOS ARM/Intel and
+Windows runs, 50k-unit texts and ≥30 cold launches on reference hardware before the final
+decision is recorded.
 
 ## Reproduce
 
