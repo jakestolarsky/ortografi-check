@@ -242,6 +242,8 @@ Control examples include both “Kupiłem chleb, i mleko” (incorrect comma) an
 | System-runtime overhead | Report as a separate installer line item | WebView2 offline on Windows and libraries in AppImage |
 | Frontend assets | JS under 200 KiB gzip, CSS under 35 KiB gzip, fonts under 400 KiB total | Compare builds; do not equate gzip size with process memory |
 
+On Linux, the `.deb` is the **primary download** and is measured against the package-size budget above. The AppImage is **optional** and measured **outside** that budget, because it must bundle GTK/WebKitGTK and this plan already excludes the WebView from the package budget. Current Linux numbers from `BUILDING.md`: `.deb` 48.4 MiB download / 103.2 MiB installed; AppImage 146.6 MiB.
+
 Reference computer: a typical laptop with 8 GB RAM and an SSD; roughly quad-core CPU for Windows/Linux, base Apple Silicon for macOS, plus a separate Intel compatibility test. Before the first measurement, record exact models, OS, WebView, power mode, and build version. Separate initialization time, engine analysis time, and total time until the result appears. Report the 700 ms automatic-analysis delay separately.
 
 If the engine exceeds the size goal, the report must show what uses space rather than hiding dependencies behind a first-run download. Then make an explicit choice between a larger package with comma checking and reducing functionality. An LLM is not an automatic solution to package size.
