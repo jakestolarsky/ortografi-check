@@ -27,6 +27,18 @@ describe('contracts v1', () => {
     expect(raw).toBe(JSON.stringify(JSON.parse(raw)) + '\n');
   });
 
+  it('EngineStatus (IPC only) validates its examples and is not a stdin/stdout message', () => {
+    const v = ajv.compile({ $ref: `${schema.$id}#/$defs/EngineStatus` });
+    const dir = join(exDir, 'ipc');
+    const files = readdirSync(dir).filter((f) => f.startsWith('engine-status'));
+    expect(files.length).toBeGreaterThan(0);
+    for (const f of files) expect(v(JSON.parse(readFileSync(join(dir, f), 'utf8')))).toBe(true);
+    for (const st of ['starting', 'ready', 'busy', 'restarting', 'unavailable']) expect(v({ state: st })).toBe(true);
+    expect(v({ state: 'stopped' })).toBe(false);
+    expect(v({ state: 'ready', extra: 1 })).toBe(false);
+    expect(validate({ state: 'ready' })).toBe(false);
+  });
+
   it('rejects unknown fields and wrong protocol', () => {
     expect(validate({ protocol: 1, type: 'shutdown', extra: 1 })).toBe(false);
     expect(validate({ protocol: 2, type: 'shutdown' })).toBe(false);

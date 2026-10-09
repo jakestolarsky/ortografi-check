@@ -32,3 +32,14 @@ fn other_consts_are_enforced() {
     assert!(parse_message(r#"{"protocol":1,"type":"ready","engineVersion":"6.8","language":"en-US"}"#).is_err());
     assert!(parse_message(r#"{"protocol":1,"type":"result","id":"c","docVersion":1,"settingsVersion":1,"engineVersion":"6.8","status":"partial","issues":[]}"#).is_err());
 }
+
+#[test]
+fn engine_status_ipc_payload() {
+    use ortografi_contracts::protocol_v1::{EngineStatus, EngineStatusState};
+    let s: EngineStatus = serde_json::from_str(r#"{"state":"restarting"}"#).unwrap();
+    assert_eq!(s.state, EngineStatusState::Restarting);
+    assert!(serde_json::from_str::<EngineStatus>(r#"{"state":"stopped"}"#).is_err());
+    assert!(serde_json::from_str::<EngineStatus>(r#"{"state":"ready","x":1}"#).is_err());
+    // Not part of the stdin/stdout message union.
+    assert!(parse_message(r#"{"state":"ready"}"#).is_err());
+}

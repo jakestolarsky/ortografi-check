@@ -392,6 +392,72 @@ fn waiting_check_is_delivered_once_after_an_invalid_line() {
     assert_eq!(sent, ["a", "b"]);
 }
 
+// ---- unavailable / retry / session reset ----
+
+fn make_unavailable_by_timeouts(s: &Supervisor) {
+    for i in 1..=3 {
+        assert_eq!(s.check(check(&format!("t{i}"), i, 1, "SLEEP:800")).error_code(), Some("TIMEOUT"));
+    }
+    assert_eq!(s.state(), EngineState::Unavailable);
+}
+
+#[test]
+fn unavailable_answers_immediately() {
+    let mut c = cfg("ok");
+    c.check_timeout_base = Duration::from_millis(300);
+    let s = Supervisor::new(c);
+    make_unavailable_by_timeouts(&s);
+    let t0 = Instant::now();
+    assert_eq!(s.check(check("x", 9, 1, "ok")).error_code(), Some("ENGINE_UNAVAILABLE"));
+    assert!(t0.elapsed() < Duration::from_millis(100));
+}
+
+#[test]
+fn retry_sets_starting_synchronously_and_queues_the_next_check() {
+    let mut c = cfg("ok");
+    c.check_timeout_base = Duration::from_millis(300);
+    let (s, seen) = recording(c);
+    make_unavailable_by_timeouts(&s);
+    take(&seen);
+    s.retry(); // returns before the engine is ready
+    assert_eq!(s.state(), EngineState::Starting, "starting must be set before retry() returns");
+    // Sent immediately after: queued and delivered at ready, not ENGINE_UNAVAILABLE.
+    let m = s.submit(check("after-retry", 10, 1, "ok")).expect("delivered");
+    assert_eq!(m.kind(), "result");
+    assert_eq!(m.id(), Some("after-retry"));
+    let got = take(&seen);
+    assert_eq!(got.first(), Some(&"starting"));
+    assert_eq!(got.iter().filter(|s| **s == "starting").count(), 1, "{got:?}");
+    assert!(got.contains(&"ready"));
+}
+
+#[test]
+fn reset_session_drops_the_waiting_check() {
+    let log = format!("{}/spawns", tempdir());
+    let s = Arc::new(Supervisor::new(cfg_logged(&log)));
+    s.start().unwrap();
+    let s1 = s.clone();
+    let a = std::thread::spawn(move || s1.submit(check("a", 5, 1, "SLEEP:400")));
+    std::thread::sleep(Duration::from_millis(100));
+    let s2 = s.clone();
+    let b = std::thread::spawn(move || s2.submit(check("b", 6, 1, "ok")));
+    std::thread::sleep(Duration::from_millis(100));
+    s.drop_waiting();
+    assert_eq!(a.join().unwrap().unwrap().kind(), "result"); // running one is not interrupted
+    assert!(b.join().unwrap().is_none(), "waiting check dropped by session reset");
+    assert_eq!(received(&log), ["a"]);
+}
+
+#[test]
+fn session_reset_lets_version_1_through_again() {
+    let mut f = StaleFilter::new();
+    f.note_request("main", (40, 3));
+    assert!(!f.accept("main", &result(1, 1)));
+    f.clear();
+    f.note_request("main", (1, 1));
+    assert!(f.accept("main", &result(1, 1)));
+}
+
 // ---- stale-result rejection ----
 
 fn result(dv: u64, sv: u64) -> ortografi_check_lib::engine::Message {
