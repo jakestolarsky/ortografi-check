@@ -31,3 +31,15 @@ fn bundled_engine_finds_the_missing_comma_in_p0_0003() {
     );
     s.shutdown();
 }
+
+#[test]
+fn bundled_engine_ships_its_manifest() {
+    let Ok(dir) = std::env::var("ORTOGRAFI_TEST_RESOURCE_DIR") else {
+        eprintln!("skipped: ORTOGRAFI_TEST_RESOURCE_DIR not set");
+        return;
+    };
+    let v = ortografi_check_lib::engine::manifest::engine_versions(&EngineSource::Bundled, Some(&PathBuf::from(dir)))
+        .expect("staged engine has engine-manifest.json");
+    assert_eq!(v.languagetool, "6.8");
+    assert!(!v.adapter.is_empty() && !v.runtime.is_empty(), "{v:?}");
+}

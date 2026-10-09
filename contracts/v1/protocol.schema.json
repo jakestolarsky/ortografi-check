@@ -284,6 +284,30 @@
           ]
         }
       }
+    },
+    "EngineVersions": {
+      "description": "Desktop IPC only (engine_manifest command, which returns this or null); not a stdin/stdout message. Versions of the bundled engine from engine-manifest.json, without checksums.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter",
+        "languagetool",
+        "runtime"
+      ],
+      "properties": {
+        "adapter": {
+          "type": "string",
+          "description": "Adapter version (manifest adapter.version)."
+        },
+        "languagetool": {
+          "type": "string",
+          "description": "LanguageTool version (manifest languageTool.version)."
+        },
+        "runtime": {
+          "type": "string",
+          "description": "Java runtime: manifest runtime.vendorVersion, else runtime.version."
+        }
+      }
     }
   }
 }

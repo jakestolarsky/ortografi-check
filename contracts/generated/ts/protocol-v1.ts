@@ -100,3 +100,21 @@ export interface Shutdown {
 export interface EngineStatus {
   state: "starting" | "ready" | "busy" | "restarting" | "unavailable";
 }
+
+/**
+ * Desktop IPC only (engine_manifest command, which returns this or null); not a stdin/stdout message. Versions of the bundled engine from engine-manifest.json, without checksums.
+ */
+export interface EngineVersions {
+  /**
+   * Adapter version (manifest adapter.version).
+   */
+  adapter: string;
+  /**
+   * LanguageTool version (manifest languageTool.version).
+   */
+  languagetool: string;
+  /**
+   * Java runtime: manifest runtime.vendorVersion, else runtime.version.
+   */
+  runtime: string;
+}
