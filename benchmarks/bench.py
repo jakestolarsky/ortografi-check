@@ -8,12 +8,16 @@ Warm: one process, WARMUP checks, then RUNS timed checks per sample, measured cl
 (round trip including JSON / HTTP). Each request appends a unique sentence so no result
 cache can short-circuit it. RSS/HWM read from /proc after the warm runs (Linux).
 Usage: bench.py <out.json> [cold_runs] [warm_runs]
+       bench.py --50k <results.json> [cold_runs] [warm_runs]
+         adds "results_50k" to an existing results file: cold = spawn -> first 50k result,
+         warm = 5 warm-up + N timed 50k checks, RSS/HWM after.
 """
 import json, os, pathlib, socket, statistics, subprocess, sys, time, urllib.parse, urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 JAVA = os.path.join(os.environ["JAVA_HOME"], "bin", "java")
 SAMPLES = {n: (ROOT / "benchmarks/sample-temporary" / f"pl-{n}.txt").read_text("utf-8") for n in ("1k", "10k")}
+TEXT_50K = (ROOT / "benchmarks/sample-temporary/pl-50k.txt").read_text("utf-8")
 ADAPTER_CP = f"{ROOT}/engine-java/target/ortografi-engine-0.0.1-phase0.jar"
 SERVER_CP = {
     "http-minimal": f"{ROOT}/benchmarks/http-server-6.8/target/lib/*",
@@ -117,6 +121,45 @@ def bench(option, flags, cold_runs, warm_runs):
     e.close()
     return res
 
+
+def bench_50k(option, flags, cold_runs, warm_runs):
+    first = []
+    for _ in range(cold_runs):
+        e = start(option, flags)
+        e.check(TEXT_50K)
+        first.append((time.perf_counter() - e.t0) * 1000)
+        e.close()
+    e = start(option, flags)
+    issues = e.check(TEXT_50K)
+    for i in range(5): e.check(TEXT_50K + f" Rozgrzewka {i}.")
+    ts = []
+    for i in range(warm_runs):
+        t = time.perf_counter(); e.check(TEXT_50K + f" Numer próby {i}."); ts.append((time.perf_counter() - t) * 1000)
+    res = {"option": option, "jvm_flags": flags, "cold_first_result_50k_ms": summary(first),
+           "warm_50k_ms": summary(ts), "issues_50k": len(issues), "issue_list_50k": issues,
+           "memory_after_warm_mib": mem(e.p.pid)}
+    e.close()
+    return res
+
+
+def main_50k(path, cold, warm):
+    configs = [("adapter", []), ("adapter", ["-Xmx256m", "-XX:+UseSerialGC"]),
+               ("http-minimal", []), ("http-minimal", ["-Xmx256m", "-XX:+UseSerialGC"]), ("http-full", [])]
+    out = []
+    for opt, flags in configs:
+        print("running 50k", opt, flags, file=sys.stderr, flush=True)
+        out.append(bench_50k(opt, flags, cold, warm))
+    data = json.loads(pathlib.Path(path).read_text("utf-8"))
+    data["results_50k"] = out
+    data["meta_50k"] = {"date": time.strftime("%Y-%m-%d %H:%M %Z"), "cold_runs": cold, "warm_runs": warm,
+                        "sample_utf16_units": len(TEXT_50K.encode("utf-16-le")) // 2,
+                        "note": "adapter now includes the NFC layer (sample is already NFC)"}
+    pathlib.Path(path).write_text(json.dumps(data, ensure_ascii=False, indent=1), "utf-8")
+
+
+if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "--50k":
+    main_50k(sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else 15, int(sys.argv[4]) if len(sys.argv) > 4 else 30)
+    sys.exit(0)
 
 if __name__ == "__main__":
     out = sys.argv[1]; cold = int(sys.argv[2]) if len(sys.argv) > 2 else 30; warm = int(sys.argv[3]) if len(sys.argv) > 3 else 30
