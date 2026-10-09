@@ -38,6 +38,13 @@ describe('prose editor diagnostics', () => {
     expect(markers()[0].getAttribute('aria-label')).toBe('Brak przecinka');
   });
 
+  it('styles the insertion marker visibly with the punctuation token', async () => {
+    await setup('Wiem że tak.');
+    const cs = getComputedStyle(markers()[0]);
+    expect(cs.width).toBe('2px');
+    expect(cs.backgroundColor).toBe('var(--issue-punctuation)');
+  });
+
   it('typing updates the session version and removes stale underlines at once', async () => {
     const { session, view } = await setup('😀 Ala ma kotaa.');
     const v = session.version;
