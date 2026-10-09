@@ -23,6 +23,7 @@ Each issue describes the **smallest edit** on the **original** text, with offset
 - **Missing comma:** a zero-length insertion, `start == end`, with replacement `","`. Example: corpus p0-0003 `Wiem że to…` has `4..4` with `","`.
 - **Unnecessary comma:** a deletion covering only the comma, `end = start + 1`, with replacement `""`. The following space stays. Example: `Był szybki, jak wiatr.` becomes `Był szybki jak wiatr.`; corpus p0-0043 marks `10..11`.
 
+## Layout
 
 | Path | What |
 |---|---|
