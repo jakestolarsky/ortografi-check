@@ -163,6 +163,16 @@ class MinimalEditCheckerTest {
   }
 
   @Test
+  void whitespaceRemovalsKeepTheRangeIncludingTheSpace() throws Exception {
+    // FORMAT.md: punctuation.spacing / punctuation.whitespace replace a range that includes the
+    // space (dev p0-0044, p0-0045, p1-0202).
+    Issue doubleSpace = issue(3, 5, " ");
+    assertEquals(doubleSpace, narrow("Mam  dwa koty.", doubleSpace).get(0));
+    Issue spaceBeforeComma = issue(15, 17, ",");
+    assertEquals(spaceBeforeComma, narrow("Przyszedł późno , więc.", spaceBeforeComma).get(0));
+  }
+
+  @Test
   void differentEditsAcrossReplacementsLeaveTheIssueUnchanged() throws Exception {
     Issue two = issue(13, 16, " i", ", oraz");
     assertEquals(two, narrow("Kupiłem chleb, i mleko.", two).get(0));
