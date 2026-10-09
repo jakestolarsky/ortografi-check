@@ -349,6 +349,62 @@ Rejected because tests failed: excluding `opentelemetry-api` (`TelemetryProvider
   positives (110 examples, `phase1-heldout` + `phase2-heldout`).
 - macOS and Windows sizes still come from CI only (the JARs are the same on every OS).
 
+## Grammar recall: numerals (phase 3, 2026-10-10 00:30 CEST)
+
+LanguageTool PL 6.8 catches none of the 46 missed grammar issues on dev. That holds with all 14
+default-off rules on, every category enabled and the "picky" level. Its only extra match on dev was
+one false alarm on a correct sentence (`PL_WORD_REPEAT`). We therefore added our own rules in
+LanguageTool's XML format:
+`engine-java/src/main/resources/pl/ortografi/engine/rules/numerals.xml`. `LanguageToolChecker`
+loads them, and they map to `grammar`. The conditions use NKJP tags (case, gender m1/m2/m3/f/n1/n2,
+pluralia tantum p1–p3), not word lists. The exceptions are two short lists: intransitive verbs for
+the verb-first case and time/measure nouns. When a numeral rule and the verb rule hit the same
+phrase, only the numeral issue is kept.
+
+Rules: `ORTOGRAFI_NUM_DWA_F`, `_DWIE_NF`, `_M1_NOM`, `_GEN_AFTER_2_4`, `_COLLECTIVE`, `_M1`,
+`_M1_REVERSE`, `_VERB_PL`. `ORTOGRAFI_NUM_COLLECTIVE_5PLUS` ("pięć dzieci" → "pięcioro") is
+**off by default** (`LanguageToolChecker.OFF_BY_DEFAULT`), pending OrBity's decision.
+
+**Dev** (main @ `f632b97` corpus, 302 examples, dev only; held-out not used):
+
+| Category | main P / R / F1 | numerals P / R / F1 | Top-1 (main → numerals) |
+|---|---|---|---|
+| grammar | 96.3% / 35.6% / 52.0% | 97.2% / **47.9%** / **64.2%** | 26.9% → 45.7% |
+| punctuation | 100% / 82.5% / 90.4% | unchanged | unchanged |
+| spelling | 98.2% / 76.7% / 86.2% | unchanged | unchanged |
+| overall | 98.5% / 63.5% / 77.2% | 98.6% / 68.0% / 80.5% | 69.8% → 71.7% |
+
+All 9 numeral misses on dev are caught, each with the exact range and the right top fix.
+Correct sentences flagged: **0/101**. These rules were written with the dev misses visible, so
+the sealed and clean-prose results below are the real check.
+
+**Clean prose** (corpus PR #26 @ `51b0b30`, 4,237 correct sentences, `fp-rate.mjs`):
+
+| Build | False alarms | per 1,000 sentences | ORTOGRAFI_* fires |
+|---|---|---|---|
+| main | 1192 | 281.33 | – |
+| first prototype `71c57f9` | 1193 | 281.57 | `ORTOGRAFI_NUM_M1` 1 ("sześć innych żyjących gatunków", fixed) |
+| `caf7fb2` and this PR | 1192 | 281.33 | **0** |
+
+Almost all false alarms on clean prose come from built-in rules, mostly
+`MORFOLOGIK_RULE_PL_PL` (782) on foreign and Latin names.
+
+**Corpus's sealed sets** (scored by Corpus on its own unseen data; numbers as Corpus reported
+them, the engine side never saw the data):
+- v1 on `caf7fb2`: F1 **84.2%** (main 16.7%). The first prototype `71c57f9` had recall 5/11 (main
+  1/11), precision 83.3%, 0/4 correct sentences flagged.
+- v2 (fresh) on `caf7fb2`: P 85.7% / R 54.5% / F1 **66.7%** (main recall 0%), 0 correct
+  sentences flagged, 0 clean-prose fires.
+- A later fix, after Corpus reported it: `_DWIE_NF` missed nouns that also have a
+  non-feminine plurale-tantum reading ("dwie jabłka"). It now only defers to a feminine reading.
+  `_VERB_PL` also checks a numeral subject after an adverb or conjunction, not only at the start
+  of a sentence.
+
+**Not handled (follow-ups, from Corpus's v2 miss types):** a singular verb after 2–4 ("dwie
+studentki przyszła"), misused trzej/troje, and obaj/obie/oboje gender. Also not handled: a plural
+verb with the wrong gender after 2–4, the verb-first case for transitive verbs, and "dwa" with
+masculine-personal nouns in the genitive ("dwa studentów").
+
 ## Open items
 
 - **Memory at 50k: resolved on Linux (phase 1).** See "Memory (phase 1)" below: peak RSS is now

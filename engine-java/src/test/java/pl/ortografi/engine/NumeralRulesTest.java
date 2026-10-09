@@ -66,6 +66,30 @@ class NumeralRulesTest {
   }
 
   @Test
+  void dwieIsFlaggedMidSentenceAndWithNounsThatHaveExtraReadings() throws Exception {
+    // "jabłka" and "pióra" also read as pluralia tantum (p3), which is not feminine.
+    assertFix("ORTOGRAFI_NUM_DWIE_NF", "Na stole leżały dwie jabłka.", "dwie", "dwa");
+    assertFix("ORTOGRAFI_NUM_DWIE_NF", "Wczoraj znalazłem dwie pióra w szufladzie.", "dwie", "dwa");
+  }
+
+  @Test
+  void numeralSubjectAfterAnAdverbOrConjunctionIsChecked() throws Exception {
+    assertFix("ORTOGRAFI_NUM_VERB_PL", "Wczoraj sześć osób przyszli na obiad.", "przyszli", "przyszło");
+    assertFix("ORTOGRAFI_NUM_VERB_PL", "Zadzwonił dzwonek i siedem osób wyszli z sali.", "wyszli", "wyszło");
+  }
+
+  @Test
+  void collectiveForFivePlusIsASeparateRuleOffByDefault() throws Exception {
+    assertEquals(List.of(), ours("Sąsiedzi mają pięć dzieci."), "pending OrBity's decision");
+    assertTrue(LanguageToolChecker.OFF_BY_DEFAULT.contains("ORTOGRAFI_NUM_COLLECTIVE_5PLUS"));
+    LanguageToolChecker on = new LanguageToolChecker(java.util.Set.of());
+    List<Issue> issues = on.check("Sąsiedzi mają pięć dzieci.").stream()
+        .filter(i -> i.ruleId().equals("ORTOGRAFI_NUM_COLLECTIVE_5PLUS")).toList();
+    assertEquals(1, issues.size(), issues.toString());
+    assertEquals("pięcioro", issues.get(0).replacements().get(0));
+  }
+
+  @Test
   void twoToFourWithAMasculinePersonalNominativeTakeTheDwajForm() throws Exception {
     assertFix("ORTOGRAFI_NUM_M1_NOM", "Dwa żołnierze stali przy bramie.", "Dwa", "Dwaj");
     assertFix("ORTOGRAFI_NUM_M1_NOM", "Wczoraj trzy lekarze dyżurowali.", "trzy", "trzej");
@@ -114,7 +138,9 @@ class NumeralRulesTest {
         "Dwoje dzieci bawiło się w piasku.", "Cztery talerze stoją na stole.", "Dwa z tych kotów są moje.",
         "Dwie doniczki stały na parapecie.", "Obaj bracia przyszli.", "Kupili trzy kilogramy jabłek.",
         "Dwa lata temu wrócili z Kanady.", "Czworo uczniów zdało.", "Zjedli pięć ciastek.",
-        "Spotkali się z pięcioma kolegami.", "Trzy dni temu przyjechali.", "Mam dwa rowery i trzy hulajnogi.")) {
+        "Spotkali się z pięcioma kolegami.", "Trzy dni temu przyjechali.", "Mam dwa rowery i trzy hulajnogi.",
+        "Wczoraj dwie koleżanki przyszły.", "Na łące rosną dwie jabłonie.", "Wczoraj sześć osób przyszło.",
+        "Widzieli wczoraj sześć osób.")) {
       assertEquals(List.of(), ours(ok), ok);
     }
   }
