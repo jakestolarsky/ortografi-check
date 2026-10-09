@@ -110,6 +110,31 @@ class ProtocolContractTest {
     assertTrue(i.get("message").asText().contains("„Wiem, że”"), i.toString());
   }
 
+  private static String devText(String file, String id) throws Exception {
+    for (String line : java.nio.file.Files.readAllLines(java.nio.file.Path.of("../tests/corpus/data/" + file + ".jsonl"))) {
+      JsonNode e = JSON.readTree(line);
+      if (e.get("id").asText().equals(id)) return e.get("text").asText();
+    }
+    throw new AssertionError(id);
+  }
+
+  /** Real engine, dev corpus texts: an extra comma is reported as exactly the comma with "". */
+  @Test
+  void extraCommasAreTheCommaOnlyWithEmptyFix() throws Exception {
+    String[][] cases = {{"phase0-starter", "p0-0001", "13"}, {"phase1-dev", "p1-0160", "14"},
+        {"phase0-starter", "p0-0043", "10"}};
+    for (String[] c : cases) {
+      String text = devText(c[0], c[1]);
+      JsonNode res = run(engine, 100_000, check(c[1], text)).get(1);
+      assertValid(res);
+      int at = Integer.parseInt(c[2]);
+      JsonNode i = issueAt(res, at, at + 1);
+      assertEquals(",", text.substring(at, at + 1), c[1]);
+      assertEquals(List.of(""), JSON.convertValue(i.get("replacements"), List.class), c[1]);
+      assertEquals("punctuation", i.get("category").asText(), c[1]);
+    }
+  }
+
   @Test
   void p0_0059_rangeAfterEmojiIsUnchanged() throws Exception {
     assertMatchesCorpusFixture("p0-0059");
