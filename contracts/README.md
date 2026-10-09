@@ -56,6 +56,7 @@ CI (`desktop.yml`, job `contracts`) regenerates and fails on any diff, then runs
 | `engine://status` | event | `EngineStatus` on every change |
 | `engine_retry` | command | Manual retry from `unavailable` (no-op in any other state). The state is already `starting` when the command returns (the spawn continues in the background), so a check sent right after it is queued and delivered at `ready`, not answered `ENGINE_UNAVAILABLE` |
 | `engine_reset_session` | command | **Call on UI load.** Clears the stale filter's versions (a WebView reload restarts at docVersion 1) and drops any waiting check |
+| `engine_manifest` | command | `EngineVersions \| null` (`$defs/EngineVersions`, `{ "adapter", "languagetool", "runtime" }`, all strings). The bundled engine's versions from `engine-manifest.json`, read once at app start; no checksums. **`null`** when an `ORTOGRAFI_ENGINE` override is active (dev; show "wersja deweloperska"), when no bundled engine was found, or when the manifest is missing or unreadable |
 
 `EngineState`:
 - `starting`: the first start, launched in the background at app start.
@@ -70,6 +71,7 @@ Notes:
 - **The stale filter ignores `id`.** It compares only (docVersion, settingsVersion) with the latest request. A retry may reuse the same versions, so the UI matches answers by `id`.
 - **No ordering between events.** A status event may arrive before or after the related `engine://message`.
 - **`unavailable` answers immediately.** While `unavailable`, a check is answered `ENGINE_UNAVAILABLE` immediately.
+- **`EngineVersions` is IPC-only** too. Its example is `v1/examples/ipc/engine-versions.json`. `runtime` is the manifest's `runtime.vendorVersion` (e.g. `Temurin-21.0.12.1+1`), else `runtime.version`.
 - **`EngineStatus` is IPC-only.** It is defined in the schema but is not part of the stdin/stdout message union. Its example is `v1/examples/ipc/engine-status.json`.
 
 Failure contract:

@@ -372,6 +372,52 @@ impl ::std::convert::TryFrom<::std::string::String> for EngineStatusState {
         value.parse()
     }
 }
+#[doc = "Desktop IPC only (engine_manifest command, which returns this or null); not a stdin/stdout message. Versions of the bundled engine from engine-manifest.json, without checksums."]
+#[doc = r""]
+#[doc = r" <details><summary>JSON schema</summary>"]
+#[doc = r""]
+#[doc = r" ```json"]
+#[doc = "{"]
+#[doc = "  \"description\": \"Desktop IPC only (engine_manifest command, which returns this or null); not a stdin/stdout message. Versions of the bundled engine from engine-manifest.json, without checksums.\","]
+#[doc = "  \"type\": \"object\","]
+#[doc = "  \"required\": ["]
+#[doc = "    \"adapter\","]
+#[doc = "    \"languagetool\","]
+#[doc = "    \"runtime\""]
+#[doc = "  ],"]
+#[doc = "  \"properties\": {"]
+#[doc = "    \"adapter\": {"]
+#[doc = "      \"description\": \"Adapter version (manifest adapter.version).\","]
+#[doc = "      \"type\": \"string\""]
+#[doc = "    },"]
+#[doc = "    \"languagetool\": {"]
+#[doc = "      \"description\": \"LanguageTool version (manifest languageTool.version).\","]
+#[doc = "      \"type\": \"string\""]
+#[doc = "    },"]
+#[doc = "    \"runtime\": {"]
+#[doc = "      \"description\": \"Java runtime: manifest runtime.vendorVersion, else runtime.version.\","]
+#[doc = "      \"type\": \"string\""]
+#[doc = "    }"]
+#[doc = "  },"]
+#[doc = "  \"additionalProperties\": false"]
+#[doc = "}"]
+#[doc = r" ```"]
+#[doc = r" </details>"]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct EngineVersions {
+    #[doc = "Adapter version (manifest adapter.version)."]
+    pub adapter: ::std::string::String,
+    #[doc = "LanguageTool version (manifest languageTool.version)."]
+    pub languagetool: ::std::string::String,
+    #[doc = "Java runtime: manifest runtime.vendorVersion, else runtime.version."]
+    pub runtime: ::std::string::String,
+}
+impl ::std::convert::From<&EngineVersions> for EngineVersions {
+    fn from(value: &EngineVersions) -> Self {
+        value.clone()
+    }
+}
 #[doc = "An error answering a `check` carries that check's id, docVersion and settingsVersion; receivers drop errors whose versions are not current. Errors not tied to a parseable check (e.g. MALFORMED_REQUEST with id null) omit both."]
 #[doc = r""]
 #[doc = r" <details><summary>JSON schema</summary>"]

@@ -8,9 +8,10 @@
 //! - `engine_retry`: manual retry after `unavailable`; state is `starting` when it returns.
 //! - `engine_reset_session`: call on UI load (e.g. after a WebView reload restarts at
 //!   docVersion 1): clears the stale filter's versions and drops any waiting check.
+//! - `engine_manifest`: `EngineVersions | null` (see engine::manifest), read once at startup.
 
 use super::{EngineConfig, EngineState, StaleFilter, Supervisor};
-use ortografi_contracts::protocol_v1::{EngineStatus, EngineStatusState};
+use ortografi_contracts::protocol_v1::{EngineStatus, EngineStatusState, EngineVersions};
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
@@ -94,4 +95,12 @@ pub fn engine_retry(engine: State<'_, Arc<Engine>>) {
 #[tauri::command]
 pub fn engine_reset_session(engine: State<'_, Arc<Engine>>) {
     engine.reset_session();
+}
+
+/// Managed state: the bundled engine's versions, read once at startup.
+pub struct EngineManifest(pub Option<EngineVersions>);
+
+#[tauri::command]
+pub fn engine_manifest(manifest: State<'_, EngineManifest>) -> Option<EngineVersions> {
+    manifest.0.clone()
 }

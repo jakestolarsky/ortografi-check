@@ -43,3 +43,14 @@ fn engine_status_ipc_payload() {
     // Not part of the stdin/stdout message union.
     assert!(parse_message(r#"{"state":"ready"}"#).is_err());
 }
+
+#[test]
+fn engine_versions_is_strict() {
+    use ortografi_contracts::protocol_v1::EngineVersions;
+    let v: EngineVersions =
+        serde_json::from_str(r#"{"adapter":"0.0.1","languagetool":"6.8","runtime":"Temurin-21.0.12+1"}"#).unwrap();
+    assert_eq!(v.languagetool, "6.8");
+    assert!(serde_json::from_str::<EngineVersions>(r#"{"adapter":"a","languagetool":"b"}"#).is_err());
+    assert!(serde_json::from_str::<EngineVersions>(r#"{"adapter":"a","languagetool":"b","runtime":"c","x":1}"#).is_err());
+}
+

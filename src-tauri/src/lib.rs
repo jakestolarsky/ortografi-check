@@ -9,7 +9,10 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             // ORTOGRAFI_ENGINE override > bundled engine in the resource dir > unavailable.
-            let located = engine::locate::locate_from_env(app.path().resource_dir().ok().as_deref());
+            let resource_dir = app.path().resource_dir().ok();
+            let located = engine::locate::locate_from_env(resource_dir.as_deref());
+            // engine_manifest: bundled engine versions, or None (override/unavailable/no manifest).
+            app.manage(ipc::EngineManifest(engine::manifest::engine_versions(&located.source, resource_dir.as_deref())));
             eprintln!("engine: {:?} ({})", located.source, located.program.display());
             let engine = Engine::new(located.config(), app.handle().clone());
             app.manage(engine.clone());
@@ -19,7 +22,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             ipc::engine_check, ipc::engine_status, ipc::engine_retry,
-            ipc::engine_reset_session
+            ipc::engine_reset_session, ipc::engine_manifest
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

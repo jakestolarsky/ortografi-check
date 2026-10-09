@@ -34,10 +34,27 @@ pnpm tauri build                       # release build; beforeBuildCommand runs 
 stages it as a Tauri resource for **this** OS and CPU:
 - the jlink-trimmed runtime, with the JVM flags from `engine-java/jvm-options.txt` built in;
 - `ortografi-engine.jar`;
-- `lib/*.jar`.
+- `lib/*.jar`;
+- `engine-manifest.json` (adapter, LanguageTool and runtime versions plus a sha256 per file,
+  written by `engine-java/scripts/jlink-runtime.sh`). Staging **fails** if it is missing. The app
+  exposes the versions (not the checksums) through the `engine_manifest` command.
 
-About 113 MiB installed and 85 MiB as tar.gz (on Linux x64). It takes about 10 s and checks that the staged engine sends
-`ready`. The app starts `engine/runtime/bin/java -jar engine/ortografi-engine.jar` from its resource
+It clears `engine-java/target/lib` first, so JARs dropped from the pom are never staged. The staged
+engine is 93.8 MiB installed and 45.0 MiB as tar.gz -9 (Linux x64, after #21; jlink compression
+stays off, `--compress=zip-0`, because installers compress better). It takes about 10 s and
+checks that the staged engine sends `ready`.
+
+Whole-app size against PLAN.md's budget (under 100 MiB compressed **and** under 220 MiB installed,
+per OS/arch, WebView excluded), measured 2026-10-09 on Linux x64:
+
+| OS | Package | Download | Installed | Fits? |
+|---|---|---|---|---|
+| Linux x64 | `.deb` | 48.4 MiB | 103.2 MiB (engine 94.0, binary 9.2; `Installed-Size` 103.4 MiB) | yes / yes |
+| Linux x64 | AppImage | not built: linuxdeploy stops on `libjvm.so` in the Java runtime (open issue) | | unmeasured |
+| macOS (ARM, Intel) | `.dmg` | unmeasured | unmeasured | unmeasured |
+| Windows x64 | NSIS/MSI | unmeasured | unmeasured | unmeasured |
+
+The WebView (WebKitGTK on Linux) is a system dependency and is not counted. The app starts `engine/runtime/bin/java -jar engine/ortografi-engine.jar` from its resource
 directory; nothing has to be installed on the user's machine. The engine is per OS/arch, so build
 the macOS ARM and Intel apps on (or for) each architecture separately.
 
