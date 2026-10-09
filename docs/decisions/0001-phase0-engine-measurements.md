@@ -164,9 +164,9 @@ on (rule ID, lower-cased matched text in the NFC copy). That stays clean because
 matches exactly one listed word. A test fails if a listed entry disappears from the
 engine's list, e.g. on upgrade.
 
-For PR review: the 12-entry list is my judgement and needs confirming by the Polish reviewer.
-Borderline entries left as spelling: `mięli` → `mieli`, `lekażów` → `lekarzy` (typo plus
-wrong form), `dojąć` → `dojść`, `sposobowy` → `sposoby`.
+Review: OrBity approved the 12-entry list ([PR #2 comment](https://github.com/jakestolarsky/ortografi-check/pull/2#issuecomment-6086442770)).
+Borderline entries left as spelling (also approved): `mięli` → `mieli`, `lekażów` → `lekarzy`
+(typo plus wrong form), `dojąć` → `dojść`, `sposobowy` → `sposoby`.
 
 ## Leading option
 
