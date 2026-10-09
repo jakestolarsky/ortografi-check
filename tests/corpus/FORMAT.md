@@ -14,7 +14,7 @@ punctuation knowledge has verified it (`review_status`).
 
 | Path | Purpose |
 |---|---|
-| `tests/corpus/data/*.jsonl` | Dev examples, one JSON object per line (canonical source): `phase0-starter.jsonl`, `phase1-dev.jsonl` |
+| `tests/corpus/data/*.jsonl` | Dev examples, one JSON object per line (canonical source): `phase0-starter.jsonl`, `phase1-dev.jsonl`, `phase2-dev.jsonl` |
 | `tests/corpus/data/heldout/*.jsonl` | Held-out examples (`split: "heldout"`), never used for tuning |
 | `tests/corpus/schema/corpus-example.v1.schema.json` | JSON Schema for one corpus line |
 | `tests/corpus/schema/engine-result.v1.schema.json` | JSON Schema for one line of engine output fed to the scorer |
@@ -76,12 +76,31 @@ UTF-16, the same layout the app contract uses, so offsets need no conversion.
 | `start`, `end` | int | UTF-16 range, `0 ≤ start ≤ end ≤ text_utf16_length`. |
 | `original` | string | Must equal `text.slice(start, end)` (`""` for zero-length). Guards against off-by-one ranges. |
 | `category` | `"spelling"` \| `"punctuation"` \| `"grammar"` \| `"style"` | The three error categories (PLAN.md §6), plus `style` (format 1.1+): a style suggestion, not an error (PLAN.md §1). A `style` issue must have `required: false` and its line must use `schema_version` ≥ `1.1`. |
-| `subcategory` | string | Dotted, starts with the category, e.g. `spelling.o_u`, `spelling.rz_z`, `spelling.ch_h`, `spelling.nie`, `spelling.capitalization`, `spelling.diacritics`, `spelling.typo`, `spelling.compound`, `spelling.reform_2026`, `punctuation.missing_comma`, `punctuation.extra_comma`, `punctuation.spacing`, `punctuation.whitespace`, `punctuation.abbreviation`, `punctuation.quotes`, `grammar.inflection`, `grammar.agreement`, `grammar.comparative`, `grammar.idiom`, `punctuation.optional_comma`, `style.pronoun`, `style.colloquial`. Open list. |
+| `subcategory` | string | Dotted, starts with the category, e.g. `spelling.o_u`, `spelling.rz_z`, `spelling.ch_h`, `spelling.nie`, `spelling.capitalization`, `spelling.diacritics`, `spelling.typo`, `spelling.compound`, `spelling.reform_2026`, `punctuation.missing_comma`, `punctuation.extra_comma`, `punctuation.spacing`, `punctuation.whitespace`, `punctuation.abbreviation`, `punctuation.quotes`, `grammar.inflection`, `grammar.agreement`, `grammar.comparative`, `grammar.idiom`, `grammar.numeral`, `grammar.preposition`, `grammar.negation`, `grammar.aspect`, `grammar.pronoun`, `punctuation.optional_comma`, `style.pronoun`, `style.colloquial`. Open list. |
 | `fixes` | string[] | Acceptable replacements for `[start, end)`, best first. `""` = delete. `[]` = a warning without a ready fix (PLAN.md §1). |
 | `required` | bool | `false` = optional/acceptable flag: reporting it is neither rewarded nor penalized, missing it is not a miss. |
 | `notes` | string? | Per-issue note. |
 
 Expected issues must not overlap each other (zero-length issues may touch a range edge).
+
+### Deletion ranges
+
+A **deletion** (an unnecessary comma or other punctuation mark) is annotated as:
+
+* the range covers **only the deleted punctuation mark**, e.g. the comma alone
+  (`end - start == 1` for a comma), never the surrounding words or spaces;
+* `fixes` is `[""]`;
+* the following space **stays** in the text (so `chleb, i` becomes `chleb i`).
+
+Example (`p0-0001`, "Kupiłem chleb, i mleko."): `start 13, end 14, original ",", fixes [""]`.
+
+Spacing errors are a different subcategory: `punctuation.spacing` (" ," → ",") and
+`punctuation.whitespace` ("  " → " ") replace a range that includes the space.
+
+Scoring: under the default `overlap` match, an engine may mark a wider span (for example
+`, i` → ` i`) and still get credit, because fixes are compared by resulting text. Under
+`--match exact` the predicted range must be exactly the comma. The data test checks every
+`punctuation.extra_comma` issue against this convention.
 
 ## Splits: dev and held-out
 
@@ -111,6 +130,9 @@ Policy:
    first ones fill the stratum's 30% held-out quota. Phase 0 examples (`p0-*`) were
    already used for tuning before the split existed, so they all stay `dev`; the quota
    for each stratum was filled from new examples only.
+   Phase 2 (`p2-*`) was split the same way within its own new examples, with strata
+   (no-issue sentence or subcategory of the first issue) × `release_critical`. Existing
+   examples were not moved.
 
 ## Engine result line (input to the scorer), schema version `1.0`
 
