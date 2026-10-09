@@ -5,8 +5,8 @@ argv[1] = startup mode: ok | noready | badready | crash
 argv[2] = contracts/v1/examples dir (a check whose id is "corpus-<x>" is answered with
           the bytes of corpus-<x>-result.json, unchanged).
 Text markers in a check: SLOW (sleep 5 s), GARBAGE (invalid line), CRASH (exit 3),
-WRONGID (answers another id), NOVERS (error without versions), STARTS:<path> (append
-one line to <path> on startup, to count spawns; read from env FAKE_SPAWN_LOG).
+SLEEP:<ms> (sleep), WRONGID (answers another id), NOVERS (error without versions), and env FAKE_SPAWN_LOG=<path>: appends
+"spawn", "recv <id>" and "shutdown" lines, to count spawns and see which checks were sent.
 """
 import json, os, sys, time
 
@@ -34,6 +34,9 @@ for line in sys.stdin:
                 f.write("shutdown\n")
         break
     text, rid = req["text"], req["id"]
+    if log:
+        with open(log, "a") as f:
+            f.write("recv " + rid + "\n")
     if rid.startswith("corpus-"):
         with open(os.path.join(examples, rid + "-result.json"), "rb") as f:
             sys.stdout.buffer.write(f.read().rstrip(b"\n") + b"\n")
@@ -43,6 +46,8 @@ for line in sys.stdin:
         sys.exit(3)
     if "SLOW" in text:
         time.sleep(5)
+    if "SLEEP:" in text:
+        time.sleep(int(text.split("SLEEP:")[1].split()[0]) / 1000)
     if "GARBAGE" in text:
         out.write("this is not json\n"); out.flush(); continue
     if "NOVERS" in text:
