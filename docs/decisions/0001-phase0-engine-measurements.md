@@ -81,8 +81,20 @@ The runtime is built by `engine-java/scripts/jlink-runtime.sh` from the pinned m
 not on the list. `engine-java/scripts/smoke_test.py --compare-java` ran the adapter on
 the jlinked runtime and on the full JDK. Both produced **identical issue lists** for a
 Unicode/NFD/CRLF case and for the 1k, 10k and 50k samples (4, 6, 49 and 231 issues), and
-CI repeats this on every OS. Linux x64 sizes are measured here; CI's step summary reports
-macOS and Windows sizes. A jlinked runtime for the HTTP server was not built (it needs at
+CI repeats this on every OS.
+
+CI run 37973864667 (2026-10-09 20:31 CEST) ran on GitHub-hosted runners with Temurin
+21.0.12.1+1 and passed on all three OSes. In each it ran 52/52 tests, the jdeps check, and an
+identical-output smoke test (jlink vs full JDK) on unicode, 1k, 10k and 50k:
+
+| Runner | jlink runtime, installed | tar.gz | + adapter JARs (51.5 / 47.9 MiB) = bundle |
+|---|---|---|---|
+| ubuntu-latest (x64) | 60.4 MiB | 37.0 MiB | ≈112 MiB / ≈85 MiB |
+| macos-latest (arm64) | 52.7 MiB | 33.6 MiB | ≈104 MiB / ≈81 MiB |
+| windows-latest (x64) | 49.2 MiB | 33.5 MiB | ≈101 MiB / ≈81 MiB |
+
+The JARs are platform-independent. The "ready" times in CI logs (1.5–2.2 s) come from shared
+runners and are not benchmark data. macOS Intel was not covered (`macos-latest` is arm64). A jlinked runtime for the HTTP server was not built (it needs at
 least `jdk.httpserver` too).
 
 Biggest adapter JARs: `grpc-netty-shaded` 10.1 MB, `fastutil-core` 6.3, `language-pl` 5.3,
