@@ -81,7 +81,7 @@ public final class LanguageToolChecker implements Checker {
                   text.substring(m.getFromPos(), m.getToPos())),
               engineCategory,
               issueType,
-              m.getMessage(),
+              PlainMessage.of(m.getMessage()),
               List.copyOf(m.getSuggestedReplacements())));
     }
     return issues;

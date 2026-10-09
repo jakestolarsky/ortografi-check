@@ -32,7 +32,8 @@ class InsertionNarrowingCheckerTest {
   @Test
   void worksOnDecomposedOriginalAndAfterEmoji() throws Exception {
     String text = "😀 Wiem z\u0307e to.";
-    Issue out = narrow(text, issue(3, 10, "Wiem, z\u0307e")).get(0);
+    assertEquals("Wiem z\u0307e", text.substring(3, 11));
+    Issue out = narrow(text, issue(3, 11, "Wiem, z\u0307e")).get(0);
     assertEquals(7, out.start());
     assertEquals(7, out.end());
     assertEquals(List.of(","), out.replacements());

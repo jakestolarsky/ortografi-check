@@ -58,7 +58,9 @@ public final class Adapter {
     }
     String id = req.path("id").isTextual() ? req.get("id").asText() : null;
     if (req.path("protocol").asInt(-1) != PROTOCOL) {
-      send(out, error(id, "UNSUPPORTED_PROTOCOL", "Supported protocol: " + PROTOCOL + "."));
+      ObjectNode e = error(id, "UNSUPPORTED_PROTOCOL", "Supported protocol: " + PROTOCOL + ".");
+      if ("check".equals(req.path("type").asText())) withVersions(e, req);
+      send(out, e);
       return true;
     }
     switch (req.path("type").asText("")) {
@@ -73,16 +75,42 @@ public final class Adapter {
     }
   }
 
+  /** Both versions present as non-negative integers (the contract's {@code version}). */
+  private static boolean hasVersions(JsonNode req) {
+    return isVersion(req.get("docVersion")) && isVersion(req.get("settingsVersion"));
+  }
+
+  private static boolean isVersion(JsonNode n) {
+    return n != null && n.isIntegralNumber() && n.canConvertToLong() && n.asLong() >= 0;
+  }
+
+  /**
+   * An error answering a check carries that check's docVersion and settingsVersion (both or
+   * neither), so the receiver can drop errors for stale versions.
+   */
+  private static ObjectNode withVersions(ObjectNode error, JsonNode req) {
+    if (hasVersions(req)) {
+      error.set("docVersion", req.get("docVersion"));
+      error.set("settingsVersion", req.get("settingsVersion"));
+    }
+    return error;
+  }
+
   private ObjectNode check(String id, JsonNode req) {
     JsonNode textNode = req.get("text");
-    if (id == null || textNode == null || !textNode.isTextual()) {
-      return error(id, "MALFORMED_REQUEST", "check requires string fields id and text.");
+    if (id == null || id.isEmpty() || textNode == null || !textNode.isTextual()) {
+      return withVersions(error(id, "MALFORMED_REQUEST", "check requires string fields id and text."), req);
+    }
+    if (!hasVersions(req)) {
+      return error(id, "MALFORMED_REQUEST", "check requires integer docVersion and settingsVersion >= 0.");
     }
     String text = textNode.asText();
     if (text.length() > maxTextUtf16Units) {
-      return error(id, "TEXT_TOO_LONG", "Limit is " + maxTextUtf16Units + " UTF-16 code units.")
-          .put("limit", maxTextUtf16Units)
-          .put("length", text.length());
+      return withVersions(
+          error(id, "TEXT_TOO_LONG", "Limit is " + maxTextUtf16Units + " UTF-16 code units.")
+              .put("limit", maxTextUtf16Units)
+              .put("length", text.length()),
+          req);
     }
     long t0 = System.nanoTime();
     java.util.List<Issue> issues;
@@ -91,7 +119,7 @@ public final class Adapter {
     } catch (Exception | StackOverflowError e) {
       // Only the exception type: messages may quote user text (PLAN.md section 13).
       System.err.println("engine error: " + e.getClass().getName());
-      return error(id, "ENGINE_ERROR", "The engine failed to analyse the text.");
+      return withVersions(error(id, "ENGINE_ERROR", "The engine failed to analyse the text."), req);
     }
     double ms = (System.nanoTime() - t0) / 1e6;
     ObjectNode res = msg("result").put("id", id);
