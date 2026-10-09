@@ -9,6 +9,10 @@
 # and its LanguageTool JARs, plus jdk.charsets and jdk.localedata (Polish locale data). jdeps
 # cannot see reflection/ServiceLoader use, so the runtime is also verified by running the adapter
 # (scripts/smoke_test.py --compare-java) against the full JDK.
+#
+# jvm-options.txt (memory flags, see decision doc 0001 "Memory") is baked into the runtime with
+# --add-options, so `runtime/bin/java -jar …` uses them without extra arguments. The build fails
+# if the runtime does not report them.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -28,7 +32,11 @@ if [ "${1:-}" = "--check" ]; then
 fi
 
 OUT="${1:-target/runtime}"
+OPTIONS=$(grep -v '^\s*$' jvm-options.txt | tr -d '\r' | paste -sd' ' -)
 rm -rf "$OUT"
-jlink --add-modules "$MODULES" --include-locales=en,pl \
+jlink --add-modules "$MODULES" --include-locales=en,pl --add-options="$OPTIONS" \
   --strip-debug --no-man-pages --no-header-files --compress=zip-6 --output "$OUT"
-echo "runtime: $OUT ($MODULES)"
+FLAGS=$("$OUT/bin/java" -XX:+PrintFlagsFinal -version 2>/dev/null | tr -d '\r')
+echo "$FLAGS" | grep -Eq 'MaxHeapSize += 134217728 ' || { echo "runtime does not apply -Xmx128m"; exit 1; }
+echo "$FLAGS" | grep -Eq 'UseSerialGC += true ' || { echo "runtime does not apply SerialGC"; exit 1; }
+echo "runtime: $OUT ($MODULES) options: $OPTIONS"

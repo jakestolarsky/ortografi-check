@@ -224,17 +224,51 @@ negative tests. There is one entry so far:
   + `(i?e)?m` → `…kiem`) also flags the correct form `Mike'iem` (corpus p1-0222, confirmed
   by OrBity). The filter accepts only a capitalised name ending in `-ke`/`-que` + `'iem`/`’iem`.
   `Mike'm` and `Mike'em` are still flagged, and so is every other sub-rule (`John'ie`,
-  `Bentley'u`, `Andrew'em`). On dev it changes only p1-0222. Open question: the filter also
-  accepts `Locke'iem` and `Braque'iem`, while the rule suggests `Lockiem`/`Brakiem`. A Polish
-  reviewer should confirm that both spellings are acceptable for these names.
+  `Bentley'u`, `Andrew'em`). On dev it changes only p1-0222. The filter also accepts
+  `Locke'iem` and `Braque'iem` (the rule suggests `Lockiem`/`Brakiem`). OrBity approved this:
+  `Mike'iem`, `Locke'iem` and `Braque'iem` are correct ([PR #5 comment](https://github.com/jakestolarsky/ortografi-check/pull/5#issuecomment-6087694951)).
+
+## Memory (phase 1, 2026-10-09)
+
+Measured on the box (Linux x64, 8 vCPU, Temurin 21.0.12.1+1) with `benchmarks/mem_sweep.py`.
+For each config, one process ran 1 + 5 warm-up + 20 timed 50k checks, interleaved with 1k
+checks; peak = VmHWM. Every config returned exactly the same issues. Raw data:
+`benchmarks/results/memory-sweep-linux-x64.json`.
+
+Native Memory Tracking showed where the memory goes: the Java heap committed up to `-Xmx`
+(252 of 318 MiB) and was mostly garbage. Code cache, metaspace and CDS were small. So the heap cap
+is the lever.
+
+| Config ("slim" = `-Xss512k -XX:ReservedCodeCacheSize=48m -XX:MaxMetaspaceSize=96m`) | Peak RSS | 50k p50 / p95 ms | 1k p50 / p95 ms |
+|---|---|---|---|
+| phase 0: `-Xmx256m -XX:+UseSerialGC` | 396 | 1370 / 1514 | 31.6 / 38.1 |
+| `-Xmx256m` + slim | 379 | 1365 / 1565 | 32.4 / 36.2 |
+| `-Xmx192m` + slim | 319 | 1354 / 1474 | 31.5 / 38.5 |
+| `-Xmx160m` + slim | 290 | 1366 / 1464 | 33.0 / 36.8 |
+| **`-Xmx128m` + slim (chosen)** | **249** | **1375 / 1464** | **32.9 / 35.5** |
+| `-Xmx112m` + slim | 248 | 1397 / 1499 | 34.0 / 38.4 |
+| `-Xmx96m` + slim | 224 | 1463 / 1566 | 34.7 / 48.0 |
+| `-Xmx160m` + slim + C1 only (`TieredStopAtLevel=1`) | 227 | 2403 / 2561 | 56.7 / 67.2 |
+| `-Xmx128m` + slim + AppCDS | 265 | 1398 / 1511 | 33.5 / 35.4 |
+
+- **Chosen: `-Xmx128m -XX:+UseSerialGC` + slim**, pinned in `engine-java/jvm-options.txt` and
+  baked into the jlink runtime with `--add-options`. `jlink-runtime.sh` fails if the runtime does
+  not report it, and CI smoke-tests that runtime against the full JDK with identical results.
+- **Headroom:** a single check at the 100k protocol limit succeeds at 128m, 112m and 96m (462
+  issues, ~4.2–4.4 s, peak ≤ 233 MiB). The live set is far below 128 MiB.
+- Below 128m, latency starts to rise (96m: +7% at 50k, 1k p95 48 ms). C1-only saves memory but
+  costs +75% latency, so it is rejected.
+- **AppCDS:** startup 966 ms vs 1163 ms (ready), but +17 MiB RSS. It is not a memory win; keep
+  it as a startup option for later.
+- **Chunking by paragraph (experiment, not shipped):** sending the 50k sample as 125 paragraph
+  checks gave a peak of 221 MiB (−28 MiB), with the same latency and the same 231 issues. Not
+  worth the risk to cross-paragraph rules now that the flags give 100 MiB of headroom.
 
 ## Open items
 
-- **Memory at 50k:** with `-Xmx256m -XX:+UseSerialGC` the adapter's peak RSS is **379 MiB** on
-  a 50k-unit text. That is over the **350 MiB** goal for the *whole app* (WebView + Rust +
-  Java; PLAN.md section 11) before the WebView and Rust are even counted. Options to measure:
-  smaller heap or a different GC, a lower automatic-analysis limit, or chunked analysis
-  (only if it keeps wider-context rules intact).
+- **Memory at 50k: resolved on Linux (phase 1).** See "Memory (phase 1)" below: peak RSS is now
+  **249 MiB** at 50k (was 379–396 MiB) with unchanged latency. Still to confirm on macOS and
+  Windows reference hardware, where the whole-app budget (WebView + Rust) is measured.
 - **No macOS Intel coverage:** CI's `macos-latest` runner and all measurements so far are
   arm64 or Linux x64. A separate Intel package is planned (PLAN.md section 12), so it needs
   its own CI runner or hardware run.
@@ -247,7 +281,7 @@ input. It also stays ahead at 50k-unit texts. **The stdin/stdout adapter is the 
 option.** CI (`.github/workflows/engine.yml`) builds and tests it, and smoke-tests it on the
 jlinked runtime, on ubuntu, macOS and Windows. Still pending before the final decision:
 timing and memory runs on macOS ARM/Intel and Windows reference hardware, ≥30 cold launches
-there, and the 50k memory question above.
+there (including memory with the phase-1 flags).
 
 ## Reproduce
 

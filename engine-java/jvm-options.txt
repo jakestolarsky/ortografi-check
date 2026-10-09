@@ -1,0 +1,5 @@
+-Xmx128m
+-XX:+UseSerialGC
+-Xss512k
+-XX:ReservedCodeCacheSize=48m
+-XX:MaxMetaspaceSize=96m

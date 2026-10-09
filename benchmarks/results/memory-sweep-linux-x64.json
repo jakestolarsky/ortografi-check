@@ -1,0 +1,414 @@
+{
+ "meta": {
+  "date": "2026-10-09 21:46 CEST",
+  "warm_runs": 20,
+  "nproc": 8,
+  "sample_utf16_units": 49357,
+  "note": "sweep 1 = all configs; sweep 2 = re-run of the low-heap configs and AppCDS (archive from -XX:ArchiveClassesAtExit after one check). Each config one process; peak = VmHWM.",
+  "java": "Temurin 21.0.12.1+1",
+  "host": "box, Linux x64, 8 vCPU"
+ },
+ "sweep1": [
+  {
+   "config": "phase0 (Xmx256m)",
+   "jvm_flags": [
+    "-Xmx256m",
+    "-XX:+UseSerialGC"
+   ],
+   "ready_ms": 1126.7,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 1370.3,
+    "p95": 1513.7,
+    "mean": 1401.8,
+    "min": 1329.9,
+    "max": 1531.6
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 31.6,
+    "p95": 38.1,
+    "mean": 32.9,
+    "min": 29.6,
+    "max": 42.5
+   },
+   "memory_mib": {
+    "VmHWM": 396.3,
+    "VmRSS": 396.3
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  },
+  {
+   "config": "Xmx256m+slim",
+   "jvm_flags": [
+    "-Xmx256m",
+    "-XX:+UseSerialGC",
+    "-Xss512k",
+    "-XX:ReservedCodeCacheSize=48m",
+    "-XX:MaxMetaspaceSize=96m"
+   ],
+   "ready_ms": 1270.4,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 1364.9,
+    "p95": 1565.4,
+    "mean": 1389.5,
+    "min": 1309.3,
+    "max": 1593.7
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 32.4,
+    "p95": 36.2,
+    "mean": 33.3,
+    "min": 29.4,
+    "max": 48.7
+   },
+   "memory_mib": {
+    "VmHWM": 379.3,
+    "VmRSS": 379.3
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  },
+  {
+   "config": "Xmx192m+slim",
+   "jvm_flags": [
+    "-Xmx192m",
+    "-XX:+UseSerialGC",
+    "-Xss512k",
+    "-XX:ReservedCodeCacheSize=48m",
+    "-XX:MaxMetaspaceSize=96m"
+   ],
+   "ready_ms": 1168.8,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 1354.0,
+    "p95": 1473.5,
+    "mean": 1372.2,
+    "min": 1297.8,
+    "max": 1631.3
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 31.5,
+    "p95": 38.5,
+    "mean": 32.7,
+    "min": 29.3,
+    "max": 44.7
+   },
+   "memory_mib": {
+    "VmHWM": 319.4,
+    "VmRSS": 319.4
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  },
+  {
+   "config": "Xmx160m+slim",
+   "jvm_flags": [
+    "-Xmx160m",
+    "-XX:+UseSerialGC",
+    "-Xss512k",
+    "-XX:ReservedCodeCacheSize=48m",
+    "-XX:MaxMetaspaceSize=96m"
+   ],
+   "ready_ms": 1220.0,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 1366.4,
+    "p95": 1464.4,
+    "mean": 1373.2,
+    "min": 1318.1,
+    "max": 1485.7
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 33.0,
+    "p95": 36.8,
+    "mean": 32.7,
+    "min": 28.8,
+    "max": 37.1
+   },
+   "memory_mib": {
+    "VmHWM": 289.7,
+    "VmRSS": 289.7
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  },
+  {
+   "config": "Xmx128m+slim",
+   "jvm_flags": [
+    "-Xmx128m",
+    "-XX:+UseSerialGC",
+    "-Xss512k",
+    "-XX:ReservedCodeCacheSize=48m",
+    "-XX:MaxMetaspaceSize=96m"
+   ],
+   "ready_ms": 1220.0,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 1395.8,
+    "p95": 1483.0,
+    "mean": 1398.8,
+    "min": 1308.3,
+    "max": 1492.8
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 32.4,
+    "p95": 36.3,
+    "mean": 32.8,
+    "min": 30.1,
+    "max": 38.0
+   },
+   "memory_mib": {
+    "VmHWM": 249.0,
+    "VmRSS": 249.0
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  },
+  {
+   "config": "Xmx160m+slim+C1",
+   "jvm_flags": [
+    "-Xmx160m",
+    "-XX:+UseSerialGC",
+    "-Xss512k",
+    "-XX:ReservedCodeCacheSize=48m",
+    "-XX:MaxMetaspaceSize=96m",
+    "-XX:TieredStopAtLevel=1"
+   ],
+   "ready_ms": 1075.2,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 2403.4,
+    "p95": 2560.9,
+    "mean": 2418.8,
+    "min": 2257.3,
+    "max": 2616.2
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 56.7,
+    "p95": 67.2,
+    "mean": 58.6,
+    "min": 51.8,
+    "max": 78.1
+   },
+   "memory_mib": {
+    "VmHWM": 227.1,
+    "VmRSS": 227.1
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  },
+  {
+   "config": "Xmx160m+slim+shrink",
+   "jvm_flags": [
+    "-Xmx160m",
+    "-XX:+UseSerialGC",
+    "-Xss512k",
+    "-XX:ReservedCodeCacheSize=48m",
+    "-XX:MaxMetaspaceSize=96m",
+    "-XX:MinHeapFreeRatio=10",
+    "-XX:MaxHeapFreeRatio=30"
+   ],
+   "ready_ms": 1265.1,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 1322.4,
+    "p95": 1404.2,
+    "mean": 1328.9,
+    "min": 1262.7,
+    "max": 1452.3
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 30.8,
+    "p95": 35.8,
+    "mean": 31.4,
+    "min": 28.3,
+    "max": 38.9
+   },
+   "memory_mib": {
+    "VmHWM": 295.6,
+    "VmRSS": 295.6
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  }
+ ],
+ "sweep2": [
+  {
+   "config": "Xmx128m+slim",
+   "jvm_flags": [
+    "-Xmx128m",
+    "-XX:+UseSerialGC",
+    "-Xss512k",
+    "-XX:ReservedCodeCacheSize=48m",
+    "-XX:MaxMetaspaceSize=96m"
+   ],
+   "ready_ms": 1163.2,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 1374.9,
+    "p95": 1464.1,
+    "mean": 1397.4,
+    "min": 1340.9,
+    "max": 1604.5
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 32.9,
+    "p95": 35.5,
+    "mean": 32.6,
+    "min": 30.0,
+    "max": 35.6
+   },
+   "memory_mib": {
+    "VmHWM": 248.5,
+    "VmRSS": 248.5
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  },
+  {
+   "config": "Xmx112m+slim",
+   "jvm_flags": [
+    "-Xmx112m",
+    "-XX:+UseSerialGC",
+    "-Xss512k",
+    "-XX:ReservedCodeCacheSize=48m",
+    "-XX:MaxMetaspaceSize=96m"
+   ],
+   "ready_ms": 1181.0,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 1397.3,
+    "p95": 1499.4,
+    "mean": 1407.3,
+    "min": 1323.9,
+    "max": 1528.0
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 34.0,
+    "p95": 38.4,
+    "mean": 34.4,
+    "min": 30.1,
+    "max": 41.8
+   },
+   "memory_mib": {
+    "VmHWM": 248.3,
+    "VmRSS": 248.3
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  },
+  {
+   "config": "Xmx96m+slim",
+   "jvm_flags": [
+    "-Xmx96m",
+    "-XX:+UseSerialGC",
+    "-Xss512k",
+    "-XX:ReservedCodeCacheSize=48m",
+    "-XX:MaxMetaspaceSize=96m"
+   ],
+   "ready_ms": 1202.2,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 1463.1,
+    "p95": 1565.5,
+    "mean": 1481.3,
+    "min": 1359.9,
+    "max": 1693.7
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 34.7,
+    "p95": 48.0,
+    "mean": 36.2,
+    "min": 30.1,
+    "max": 53.6
+   },
+   "memory_mib": {
+    "VmHWM": 223.5,
+    "VmRSS": 223.5
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  },
+  {
+   "config": "Xmx128m+slim+AppCDS",
+   "jvm_flags": [
+    "-Xmx128m",
+    "-XX:+UseSerialGC",
+    "-Xss512k",
+    "-XX:ReservedCodeCacheSize=48m",
+    "-XX:MaxMetaspaceSize=96m",
+    "-XX:SharedArchiveFile=/tmp/p1/app.jsa"
+   ],
+   "ready_ms": 966.4,
+   "warm_50k_ms": {
+    "n": 20,
+    "p50": 1398.1,
+    "p95": 1510.5,
+    "mean": 1414.1,
+    "min": 1365.0,
+    "max": 1608.5
+   },
+   "warm_1k_ms": {
+    "n": 20,
+    "p50": 33.5,
+    "p95": 35.4,
+    "mean": 33.2,
+    "min": 29.9,
+    "max": 38.1
+   },
+   "memory_mib": {
+    "VmHWM": 265.3,
+    "VmRSS": 265.3
+   },
+   "issues_50k": 231,
+   "same_issues_as_first": true
+  }
+ ],
+ "max_text_100k": [
+  {
+   "config": "Xmx128m+slim",
+   "ok": true,
+   "issues": 462,
+   "ms": 4210.1,
+   "VmHWM_mib": 231.5
+  },
+  {
+   "config": "Xmx112m+slim",
+   "ok": true,
+   "issues": 462,
+   "ms": 4443.0,
+   "VmHWM_mib": 226.5
+  },
+  {
+   "config": "Xmx96m+slim",
+   "ok": true,
+   "issues": 462,
+   "ms": 4379.9,
+   "VmHWM_mib": 232.6
+  }
+ ],
+ "chunking_experiment": {
+  "config": "Xmx128m+slim",
+  "what": "50k sample sent as 125 per-paragraph checks (not shipped)",
+  "ms": {
+   "p50": 1379.4,
+   "p95": 1458.5
+  },
+  "issues": 231,
+  "issues_whole": 231,
+  "VmHWM_mib": 221.3
+ },
+ "chosen": "Xmx128m+slim (engine-java/jvm-options.txt, baked into the jlink runtime)"
+}
