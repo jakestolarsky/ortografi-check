@@ -3,6 +3,7 @@ package pl.ortografi.engine;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -22,14 +23,32 @@ class SubjectVerbCommaRuleTest {
         .toList();
   }
 
+  /**
+   * Exactly one punctuation issue overlaps the comma, from our rule or LanguageTool's narrower
+   * built-in PODMIOT_ORZECZENIE (LanguageTool keeps one of two matches on the same span), and
+   * applying its top suggestion removes just the comma.
+   */
   private static void assertFlagsOnlyTheComma(String text) throws Exception {
-    List<Issue> issues = ours(text);
+    int comma = text.indexOf(',');
+    List<Issue> issues = checker.check(text).stream()
+        .filter(i -> i.start() <= comma && i.end() > comma)
+        .toList();
     assertEquals(1, issues.size(), text + " -> " + issues);
     Issue i = issues.get(0);
-    assertEquals(",", text.substring(i.start(), i.end()), text);
-    assertEquals(text.indexOf(','), i.start(), text);
-    assertEquals(List.of(""), i.replacements(), text);
+    assertTrue(Set.of(SubjectVerbCommaRule.ID, "PODMIOT_ORZECZENIE").contains(i.ruleId()), i.ruleId());
     assertEquals("punctuation", i.category(), text);
+    String fixed = text.substring(0, i.start()) + i.replacements().get(0) + text.substring(i.end());
+    assertEquals(text.substring(0, comma) + text.substring(comma + 1), fixed, text);
+  }
+
+  @Test
+  void ourRuleReportsJustTheCommaWithAnEmptyFix() throws Exception {
+    String text = "Mój starszy brat, pracuje w szpitalu."; // corpus p0-0004
+    List<Issue> issues = ours(text);
+    assertEquals(1, issues.size(), issues.toString());
+    assertEquals(16, issues.get(0).start());
+    assertEquals(17, issues.get(0).end());
+    assertEquals(List.of(""), issues.get(0).replacements());
   }
 
   @Test
@@ -64,7 +83,11 @@ class SubjectVerbCommaRuleTest {
         "Brat, siostra i ja pracujemy razem.", // enumeration
         "Wczoraj, gdy padało, brat pracował w domu.",
         "Mój starszy brat pracuje w szpitalu.",
-        "Jan, Piotr i Maria przyszli."}) {
+        "Jan, Piotr i Maria przyszli.",
+        "Tata, zdaje się, wyjechał.", // parenthetical verb phrase closed by a comma
+        "Babcia, ma się rozumieć, ugotowała obiad.",
+        "Mój brat, wydaje mi się, pracuje w szpitalu.",
+        "Moi rodzice, mówi się, wyjechali — na zawsze."}) {
       assertEquals(List.of(), ours(t), t);
     }
   }
