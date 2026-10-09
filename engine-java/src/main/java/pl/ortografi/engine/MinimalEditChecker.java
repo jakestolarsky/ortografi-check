@@ -10,9 +10,10 @@ import java.util.List;
  * covering only the comma with "" ("chleb, i" 13..16 → " i" becomes 13..14 → ""), so the
  * following space stays.
  *
- * <p>Applied only to punctuation edits: what is removed and what is inserted consist of
- * punctuation ({@code \p{P}}) or whitespace (a missing space after a comma: ",co" → ", co"
- * becomes " " at the point), every replacement trims to the same range, and the edit is not
+ * <p>Applied only to punctuation edits: what is removed is punctuation only ({@code \p{P}};
+ * spacing fixes such as " ," → "," keep a range that includes the space, per the corpus
+ * FORMAT.md), and what is inserted is punctuation or whitespace (a missing space after a comma:
+ * ",co" → ", co" becomes " " at the point), every replacement trims to the same range, and the edit is not
  * inside a word. Letter and digit edits ("Poszłem" → "Poszedłem", "kotaa" → "kota") and
  * in-word spaces ("wogóle" → "w ogóle") keep the engine's whole-word range, as do mixed edits ("Mimo, że" → "Mimo
  * iż"), and so do punctuation edits inside a word ("email" → "e-mail"). Trimming takes the longest common prefix first, so the result is deterministic. A range
@@ -52,7 +53,9 @@ final class MinimalEditChecker implements Checker {
       String removed = covered.substring(p, covered.length() - q);
       String added = r.substring(p, r.length() - q);
       if (removed.isEmpty() && added.isEmpty()) return i; // replacement equals the text
-      if (!isPunctuationOrSpace(removed) || !isPunctuationOrSpace(added)) return i;
+      // Removed text must be punctuation only: spacing fixes (" ," → ",", "  " → " ") keep a range
+      // that includes the space (corpus FORMAT.md). Inserted text may also be whitespace.
+      if (!isPunctuation(removed) || !isPunctuationOrSpace(added)) return i;
       int s = i.start() + p;
       int e = i.end() - q;
       if (start >= 0 && (s != start || e != end)) return i;
@@ -68,6 +71,10 @@ final class MinimalEditChecker implements Checker {
         && Character.isLetterOrDigit(text.codePointAt(end))) return i;
     return new Issue(start, end, i.ruleId(), i.category(), i.engineCategory(), i.issueType(),
         i.message(), List.copyOf(inserted));
+  }
+
+  private static boolean isPunctuation(String s) {
+    return s.codePoints().noneMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c)) && isPunctuationOrSpace(s);
   }
 
   private static boolean isPunctuationOrSpace(String s) {
