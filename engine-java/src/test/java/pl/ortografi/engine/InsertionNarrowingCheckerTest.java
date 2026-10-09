@@ -60,11 +60,24 @@ class InsertionNarrowingCheckerTest {
   }
 
   @Test
+  void insertionsInsideAWordStayWholeWordReplacements() throws Exception {
+    // Spelling fixes that happen to be insertions keep the word range (corpus p0-0034, p1-0096).
+    Issue poszlem = issue(0, 7, "Poszedłem");
+    assertEquals(poszlem, narrow("Poszłem do sklepu.", poszlem).get(0));
+    Issue samchod = issue(4, 11, "samochód", "sam chód");
+    assertEquals(samchod, narrow("Ten samchód jest stary.", samchod).get(0));
+    Issue wogole = issue(0, 6, "w ogóle");
+    assertEquals(wogole, narrow("wogóle nie.", wogole).get(0));
+    Issue z4 = issue(0, 2, "z 4");
+    assertEquals(z4, narrow("z4 x", z4).get(0));
+  }
+
+  @Test
   void insertionOfARepeatedCharacterIsPlacedDeterministically() throws Exception {
-    // "a" → "aa": the inserted "a" is placed after the longest common prefix.
-    Issue out = narrow("xa y", issue(1, 2, "aa")).get(0);
+    // ". " → ". ." would be odd; use punctuation: "," → ",," inserts after the common prefix.
+    Issue out = narrow("a, b", issue(1, 2, ",,")).get(0);
     assertEquals(2, out.start());
     assertEquals(2, out.end());
-    assertEquals(List.of("a"), out.replacements());
+    assertEquals(List.of(","), out.replacements());
   }
 }
