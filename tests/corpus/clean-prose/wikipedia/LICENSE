@@ -1,0 +1,17 @@
+Text in sentences.jsonl in this directory is taken from Polish Wikipedia
+(https://pl.wikipedia.org/) and is licensed under the Creative Commons
+Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0):
+https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+Attribution: "Wikipedia contributors". Each line records the article title
+(source_title), the article URL (url), the revision id it was taken from
+(revision) and a permanent link to that revision (permalink), where the full
+list of authors is available in the page history.
+
+Changes: the article text was split into sentences, filtered (short/long
+sentences, lists, headings, non-Latin text removed) and normalised to Unicode
+NFC. Sentences are otherwise unchanged.
+
+Share-alike: this directory (and only this directory) is CC BY-SA 4.0. Derived
+copies of these sentences must be shared under the same license. The rest of
+the repository is not affected; keep this data in its own folder.
