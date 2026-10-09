@@ -89,6 +89,16 @@ export interface ProseEditor {
 
 const severity = (c: Issue['category']): Diagnostic['severity'] => (c === 'style' ? 'info' : c === 'grammar' ? 'warning' : 'error');
 
+/** Button label that makes invisible fixes (spaces, insertions, deletions) readable. */
+export function suggestionLabel(text: string, from: number, to: number, insert: string): string {
+  if (from === to) return insert === ' ' ? 'wstaw spację' : `wstaw „${insert}”`;
+  if (insert === '') {
+    const removed = text.slice(from, to);
+    return /^\s+$/.test(removed) ? 'usuń spację' : `usuń „${removed}”`;
+  }
+  return insert;
+}
+
 /** Popup shows at most this many suggestions, in engine order (PLAN s.4). */
 export const MAX_POPUP_SUGGESTIONS = 5;
 
@@ -98,7 +108,7 @@ export function issueDiagnostics(issues: readonly Issue[], session: CheckSession
   return issues.map((i, issueIndex) => ({
     from: i.start, to: i.end, severity: severity(i.category), message: i.message,
     actions: registry ? i.replacements.slice(0, MAX_POPUP_SUGGESTIONS).map((r, fixIndex) => ({
-      name: r === '' ? 'Usuń' : r,
+      name: suggestionLabel(session.text, i.start, i.end, r),
       apply: (view: EditorView) => { registry.execute('issue.applyFix', { view, session, issueIndex, fixIndex }); },
     })) : [],
   }));
