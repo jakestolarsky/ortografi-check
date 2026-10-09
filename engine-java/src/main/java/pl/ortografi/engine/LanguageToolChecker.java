@@ -82,7 +82,7 @@ public final class LanguageToolChecker implements Checker {
               engineCategory,
               issueType,
               PlainMessage.of(m.getMessage()),
-              List.copyOf(m.getSuggestedReplacements())));
+              SuggestionCap.cap(m.getSuggestedReplacements())));
     }
     return issues;
   }

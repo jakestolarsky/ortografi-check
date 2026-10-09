@@ -10,7 +10,7 @@ validates real adapter output, the shared examples and the corpus fixtures again
 Requires Temurin 21 (measured with 21.0.12.1+1) and Maven 3.9.
 
 ```sh
-mvn test            # 102 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
+mvn test            # 107 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
 mvn package         # target/ortografi-engine-0.0.1-phase0.jar + target/lib/*.jar (engine JARs kept separate, LGPL)
 java -jar target/ortografi-engine-0.0.1-phase0.jar
 scripts/jlink-runtime.sh --check      # runtime-modules.txt (+ runtime-modules-excluded.txt) covers jdeps output
@@ -95,6 +95,10 @@ only (`System.out` is redirected to stderr at startup); stderr carries logs and 
     that includes the space.
   - Letter and digit edits and anything inside a word (`Poszłem` → `Poszedłem`,
     `wogóle` → `w ogóle`, `email` → `e-mail`) keep the whole-word range.
+- **At most 5 replacements per issue** (`SuggestionCap.MAX_REPLACEMENTS`): LanguageTool's
+  spelling rule can return dozens (about 60 for `rzaba`); the engine keeps the first 5 in
+  LanguageTool's order. Comma insertions and deletions have one replacement and are unaffected.
+  A true fix LT ranks lower is no longer sent (e.g. `żułwa` → `żółwia`).
 - `message` is **plain text**: LanguageTool's `<suggestion>x</suggestion>` becomes `„x”`
   (`PlainMessage`). The UI must still never render it as HTML.
 - A `check` needs `docVersion` and `settingsVersion` as integers ≥ 0. If either is missing or
