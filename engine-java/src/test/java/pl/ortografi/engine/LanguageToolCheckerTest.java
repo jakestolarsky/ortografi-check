@@ -150,7 +150,12 @@ class LanguageToolCheckerTest {
     List<Issue> issues = new NormalizingChecker(checker).check(text);
     Issue i = onlyIssueCovering(issues, text, word + "a");
     assertEquals("spelling", i.category());
-    assertTrue(i.replacements().contains("żółwia"), i::toString); // edited word: NFC
+    // Edited word is written in NFC. LT ranks the true fix "żółwia" below its top 5, so with
+    // SuggestionCap it is no longer sent; "żółwi" (5th) still shows the NFC mapping.
+    assertTrue(i.replacements().contains("żółwi"), i::toString);
+    for (String r : i.replacements()) {
+      assertTrue(java.text.Normalizer.isNormalized(r, java.text.Normalizer.Form.NFC), r);
+    }
     onlyIssueCovering(issues, text, "kotaa");
     assertOffsetsAreValidUtf16(text, issues);
   }
@@ -220,5 +225,37 @@ class LanguageToolCheckerTest {
   @Test
   void emptyTextHasNoIssues() throws Exception {
     assertEquals(List.of(), checker.check(""));
+  }
+
+  /** p0-0063: NFD "Może" before the issue; "rzaba" gets far more than 5 suggestions from LT. */
+  @Test
+  void suggestionsAreCappedAtFiveInLanguageToolOrder() throws Exception {
+    String nfd = "Moz\u0307e to rzaba skacze po ła\u0328ce?";
+    String nfc = java.text.Normalizer.normalize(nfd, java.text.Normalizer.Form.NFC);
+    var raw = new org.languagetool.JLanguageTool(
+        org.languagetool.Languages.getLanguageForShortCode("pl-PL")).check(nfc).stream()
+        .filter(m -> nfc.substring(m.getFromPos(), m.getToPos()).equals("rzaba"))
+        .findFirst().orElseThrow().getSuggestedReplacements();
+    assertTrue(raw.size() > SuggestionCap.MAX_REPLACEMENTS, () -> "LT gave only " + raw);
+
+    List<Issue> issues = new MinimalEditChecker(new NormalizingChecker(checker)).check(nfd);
+    Issue i = onlyIssueCovering(issues, nfd, "rzaba");
+    assertEquals(9, i.start());
+    assertEquals(14, i.end());
+    assertEquals(raw.subList(0, 5), i.replacements());
+    assertEquals("żaba", i.replacements().get(0));
+  }
+
+  @Test
+  void fewerThanFiveSuggestionsAndCommaFixesAreUnchanged() throws Exception {
+    Checker full = new MinimalEditChecker(new NormalizingChecker(checker));
+    String insert = "Wiem że to nie będzie łatwe.";
+    Issue comma = onlyIssueCovering(full.check(insert), insert, "");
+    assertEquals(4, comma.start());
+    assertEquals(List.of(","), comma.replacements());
+
+    String delete = "Kupiłem chleb, i mleko.";
+    Issue extra = onlyIssueCovering(full.check(delete), delete, ",");
+    assertEquals(List.of(""), extra.replacements());
   }
 }

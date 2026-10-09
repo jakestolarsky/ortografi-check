@@ -21,6 +21,7 @@ Proposed by Ortografi UI, agreed with Desktop (Rust/IPC) and Engine.
 Each issue describes the **smallest edit** on the **original** text, with offsets in UTF-16 code units (`end` exclusive). Applying a fix means replacing `text[start..end]` with the chosen replacement.
 
 - **Empty replacements delete the whole range:** if every replacement on an issue is `""`, applying that issue deletes `text[start..end)`, whatever the category. The usual extra-comma case is a one-character range with `[""]`. Example: `Był szybki, jak wiatr.` becomes `Był szybki jak wiatr.`; corpus p0-0043 marks `10..11`. The following space stays.
+- **At most 5 replacements:** the engine sends at most 5 replacements per issue, in the engine's order (best first). The UI may show fewer; it must not reorder them.
 - **Missing comma:** a zero-length insertion, `start == end`, with replacement `","`. Example: corpus p0-0003 `Wiem że to…` has `4..4` with `","`.
 
 ## Tooling conventions
