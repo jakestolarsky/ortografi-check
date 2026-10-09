@@ -1,0 +1,125 @@
+package pl.ortografi.engine;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.List;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Runs the real, pinned LanguageTool language-pl engine (PLAN.md section 10: "JUnit + the actual
+ * pinned LanguageTool"). Offsets must be UTF-16 code units, i.e. Java/JavaScript string indexes.
+ */
+class LanguageToolCheckerTest {
+
+  private static LanguageToolChecker checker;
+
+  @BeforeAll
+  static void startEngine() {
+    checker = new LanguageToolChecker();
+  }
+
+  private static Issue onlyIssueCovering(List<Issue> issues, String text, String fragment) {
+    List<Issue> hits =
+        issues.stream().filter(i -> text.substring(i.start(), i.end()).equals(fragment)).toList();
+    assertEquals(1, hits.size(), () -> "expected exactly one issue on '" + fragment + "' in " + issues);
+    return hits.get(0);
+  }
+
+  private static void assertOffsetsAreValidUtf16(String text, List<Issue> issues) {
+    for (Issue i : issues) {
+      assertTrue(0 <= i.start() && i.start() <= i.end() && i.end() <= text.length(), i::toString);
+      assertFalse(
+          i.start() > 0 && Character.isLowSurrogate(text.charAt(i.start())),
+          () -> "start splits a surrogate pair: " + i);
+      assertFalse(
+          i.end() < text.length() && Character.isLowSurrogate(text.charAt(i.end())),
+          () -> "end splits a surrogate pair: " + i);
+    }
+  }
+
+  @Test
+  void reportsPinnedEngineVersion() {
+    assertEquals("6.8", checker.engineVersion());
+    assertEquals("pl-PL", checker.languageCode());
+  }
+
+  @Test
+  void flagsPolishMisspellingWithSuggestion() throws Exception {
+    String text = "Ala ma kotaa.";
+    List<Issue> issues = checker.check(text);
+    Issue i = onlyIssueCovering(issues, text, "kotaa");
+    assertEquals(7, i.start());
+    assertEquals(12, i.end());
+    assertEquals("TYPOS", i.category());
+    assertTrue(i.replacements().contains("kota"), i::toString);
+  }
+
+  @Test
+  void offsetsAfterPolishDiacriticsAreUtf16() throws Exception {
+    String text = "Zażółć gęślą jaźń, a potem kotaa.";
+    List<Issue> issues = checker.check(text);
+    Issue i = onlyIssueCovering(issues, text, "kotaa");
+    assertEquals(text.indexOf("kotaa"), i.start());
+    assertOffsetsAreValidUtf16(text, issues);
+  }
+
+  @Test
+  void offsetsAfterEmojiCountSurrogatePairsAsTwoUnits() throws Exception {
+    String text = "😀😀 Ala ma kotaa.";
+    List<Issue> issues = checker.check(text);
+    Issue i = onlyIssueCovering(issues, text, "kotaa");
+    // Two emoji = 4 UTF-16 units (not 2 code points, not 8 UTF-8 bytes).
+    assertEquals(12, i.start());
+    assertEquals(17, i.end());
+    assertOffsetsAreValidUtf16(text, issues);
+  }
+
+  @Test
+  void offsetsAfterZwjEmojiSequenceAndNonBmpLetters() throws Exception {
+    String text = "Rodzina 👨‍👩‍👧 i 𝔸 oraz kotaa w domu.";
+    List<Issue> issues = checker.check(text);
+    Issue i = onlyIssueCovering(issues, text, "kotaa");
+    assertEquals(text.indexOf("kotaa"), i.start());
+    assertOffsetsAreValidUtf16(text, issues);
+  }
+
+  @Test
+  void offsetsAfterCombiningMarksAreUtf16() throws Exception {
+    // "Zażółć" written in decomposed form (NFD): letters + combining marks.
+    String nfd = "Zaz\u0307o\u0301łc\u0301";
+    String text = nfd + " i kotaa.";
+    List<Issue> issues = checker.check(text);
+    Issue i = onlyIssueCovering(issues, text, "kotaa");
+    assertEquals(nfd.length() + 3, i.start());
+    assertOffsetsAreValidUtf16(text, issues);
+  }
+
+  @Test
+  void flagsMissingCommaBeforeZe() throws Exception {
+    String text = "Wiem że przyjdzie jutro.";
+    List<Issue> issues = checker.check(text);
+    Issue i = onlyIssueCovering(issues, text, "Wiem że");
+    assertEquals("PUNCTUATION", i.category());
+    assertTrue(i.replacements().contains("Wiem, że"), i::toString);
+  }
+
+  @Test
+  void flagsUnnecessaryCommaBeforeI() throws Exception {
+    String text = "Kupiłem chleb, i mleko.";
+    List<Issue> issues = checker.check(text);
+    Issue i = onlyIssueCovering(issues, text, ", i");
+    assertEquals("PUNCTUATION", i.category());
+  }
+
+  @Test
+  void acceptsCorrectCommaBeforeIClosingParenthetical() throws Exception {
+    // PLAN.md section 10 control example: this comma before "i" is correct.
+    assertEquals(List.of(), checker.check("Obiecał, że przyjdzie, i dotrzymał słowa."));
+  }
+
+  @Test
+  void emptyTextHasNoIssues() throws Exception {
+    assertEquals(List.of(), checker.check(""));
+  }
+}
