@@ -27,6 +27,9 @@ public final class LanguageToolChecker implements Checker {
     List<RuleMatch> matches = lt.check(text);
     List<Issue> issues = new ArrayList<>(matches.size());
     for (RuleMatch m : matches) {
+      if (FalsePositiveFilter.suppresses(m.getRule().getId(), text.substring(m.getFromPos(), m.getToPos()))) {
+        continue;
+      }
       // RuleMatch positions are Java String indexes, i.e. UTF-16 code units.
       String engineCategory = m.getRule().getCategory().getId().toString();
       String issueType = m.getRule().getLocQualityIssueType().toString();
