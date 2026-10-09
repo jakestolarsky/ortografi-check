@@ -30,6 +30,13 @@ public final class CategoryMapper {
           Map.entry("MISC", "other"),
           Map.entry("NUMBERS", "other"));
 
+  /** TDD stub. */
+  static final java.util.Set<String> SIMPLE_REPLACE_INFLECTION = java.util.Set.of();
+
+  public static String map(String ruleId, String engineCategoryId, String issueType, String coveredText) {
+    throw new UnsupportedOperationException("TODO");
+  }
+
   private CategoryMapper() {}
 
   public static String map(String engineCategoryId, String issueType) {

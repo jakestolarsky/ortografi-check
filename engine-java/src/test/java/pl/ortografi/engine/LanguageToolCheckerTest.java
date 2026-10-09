@@ -156,6 +156,34 @@ class LanguageToolCheckerTest {
   }
 
   @Test
+  void simpleReplaceInflectionErrorIsGrammarButItsTypoEntriesStaySpelling() throws Exception {
+    String t1 = "Poszłem do sklepu.";
+    Issue a = onlyIssueCovering(checker.check(t1), t1, "Poszłem");
+    assertEquals("PL_SIMPLE_REPLACE", a.ruleId());
+    assertEquals("grammar", a.category());
+    assertEquals("PRAWDOPODOBNE_LITEROWKI", a.engineCategory());
+    String t2 = "Wogle nie wiem.";
+    Issue b = onlyIssueCovering(checker.check(t2), t2, "Wogle");
+    assertEquals("PL_SIMPLE_REPLACE", b.ruleId());
+    assertEquals("spelling", b.category());
+  }
+
+  @Test
+  void abbreviationAndNumberSpacingRulesArePunctuation() throws Exception {
+    String t1 = "Weź np wodę.";
+    assertEquals("punctuation", onlyIssueCovering(checker.check(t1), t1, "np").category());
+    String t2 = "Było to w 2025r. latem.";
+    assertEquals("punctuation", onlyIssueCovering(checker.check(t2), t2, "2025r.").category());
+  }
+
+  @Test
+  void styleIssuesStayStyle() throws Exception {
+    String t = "Musimy cofnąć się do tyłu.";
+    Issue i = onlyIssueCovering(checker.check(t), t, "cofnąć się do tyłu");
+    assertEquals("style", i.category());
+  }
+
+  @Test
   void emptyTextHasNoIssues() throws Exception {
     assertEquals(List.of(), checker.check(""));
   }
