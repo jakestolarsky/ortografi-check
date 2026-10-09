@@ -1,0 +1,3 @@
+# Modules jdeps reports but the runtime leaves out (scripts/jlink-runtime.sh --check skips them).
+# One per line: module, then why. Verified by the smoke test and an unchanged dev corpus run.
+java.desktop only java.beans/java.awt in commons-digester bean rules, commons-lang3 AbstractCircuitBreaker and jakarta.activation viewers, none used by the engine (~8 MiB)

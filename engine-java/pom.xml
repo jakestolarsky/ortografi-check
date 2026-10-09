@@ -25,6 +25,25 @@
       <groupId>org.languagetool</groupId>
       <artifactId>language-pl</artifactId>
       <version>${languagetool.version}</version>
+      <!-- Bundle trim (decision doc 0001, "Bundle size"): LanguageTool's remote/server stack
+           (gRPC transport, protobuf, metrics, circuit breaker), Hunspell (Polish uses
+           Morfologik), Lucene n-grams and the language detector are never used by the
+           adapter. Each was removed only with all tests, the jlink smoke test and identical
+           dev corpus output. grpc-api, opentelemetry and fastutil stay: core links them. -->
+      <exclusions>
+        <exclusion><groupId>io.grpc</groupId><artifactId>grpc-netty-shaded</artifactId></exclusion>
+        <exclusion><groupId>io.grpc</groupId><artifactId>grpc-protobuf</artifactId></exclusion>
+        <exclusion><groupId>com.google.protobuf</groupId><artifactId>protobuf-java</artifactId></exclusion>
+        <exclusion><groupId>io.micrometer</groupId><artifactId>micrometer-registry-prometheus</artifactId></exclusion>
+        <exclusion><groupId>io.prometheus</groupId><artifactId>simpleclient</artifactId></exclusion>
+        <exclusion><groupId>io.prometheus</groupId><artifactId>simpleclient_guava</artifactId></exclusion>
+        <exclusion><groupId>io.github.resilience4j</groupId><artifactId>resilience4j-micrometer</artifactId></exclusion>
+        <exclusion><groupId>io.github.resilience4j</groupId><artifactId>resilience4j-circuitbreaker</artifactId></exclusion>
+        <exclusion><groupId>com.gitlab.dumonts</groupId><artifactId>hunspell</artifactId></exclusion>
+        <exclusion><groupId>org.apache.lucene</groupId><artifactId>lucene-core</artifactId></exclusion>
+        <exclusion><groupId>org.apache.lucene</groupId><artifactId>lucene-backward-codecs</artifactId></exclusion>
+        <exclusion><groupId>com.optimaize.languagedetector</groupId><artifactId>language-detector</artifactId></exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -62,6 +81,7 @@
               <mainClass>pl.ortografi.engine.Main</mainClass>
               <addClasspath>true</addClasspath>
               <classpathPrefix>lib/</classpathPrefix>
+              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
             </manifest>
           </archive>
         </configuration>

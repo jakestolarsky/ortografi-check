@@ -10,15 +10,52 @@ real adapter output, the shared examples and the corpus fixtures against it.
 Requires Temurin 21 (measured with 21.0.12.1+1) and Maven 3.9.
 
 ```sh
-mvn test            # 98 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
+mvn test            # 102 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
 mvn package         # target/ortografi-engine-0.0.1-phase0.jar + target/lib/*.jar (engine JARs kept separate, LGPL)
 java -jar target/ortografi-engine-0.0.1-phase0.jar
-scripts/jlink-runtime.sh --check      # pinned runtime-modules.txt still covers jdeps output
-scripts/jlink-runtime.sh target/runtime
+scripts/jlink-runtime.sh --check      # runtime-modules.txt (+ runtime-modules-excluded.txt) covers jdeps output
+scripts/jlink-runtime.sh target/runtime   # also writes target/engine-manifest.json
 python3 scripts/smoke_test.py --java target/runtime/bin/java --compare-java "$JAVA_HOME/bin/java"
 ```
 
 CI: `.github/workflows/engine.yml` runs all of the above on ubuntu, macOS and Windows.
+
+## Engine manifest
+
+`scripts/jlink-runtime.sh target/runtime` writes `target/engine-manifest.json` next to the JAR. It
+runs `pl.ortografi.engine.EngineManifest` with the new runtime's own `java`, so the runtime fields
+describe the runtime that ships. Ship the manifest with the engine and use it to check what a
+bundle contains.
+
+```json
+{
+  "manifestVersion": 1,
+  "protocol": 1,
+  "adapter": { "version": "0.0.1-phase0", "jar": "ortografi-engine-0.0.1-phase0.jar" },
+  "languageTool": { "version": "6.8" },
+  "runtime": { "vendor": "Eclipse Adoptium", "vendorVersion": "Temurin-21.0.12.1+1",
+               "version": "21.0.12.1+1-LTS", "os": "Linux", "arch": "amd64" },
+  "sha256": { "lib/language-pl-6.8.jar": "…", "ortografi-engine-0.0.1-phase0.jar": "…", "runtime/bin/java": "…" }
+}
+```
+
+- `sha256` covers every shipped file: the adapter JAR, `lib/*.jar` and everything under
+  `runtime/`. Keys are paths relative to the manifest's folder with `/`, sorted. The manifest does
+  not hash itself.
+- The output has no timestamps, so the same inputs give the same file. `EngineManifestTest`
+  covers this.
+- The adapter version comes from the JAR's `Implementation-Version`. The LanguageTool version
+  comes from `JLanguageTool.VERSION`.
+- If staging renames the JAR (Desktop stages it as `ortografi-engine.jar`), the hash still
+  matches, but `adapter.jar` keeps the original name.
+
+## Bundle trim
+
+The runtime leaves out `java.desktop` (`runtime-modules-excluded.txt`) and uses `--compress=zip-0`.
+`pom.xml` excludes LanguageTool's unused gRPC/protobuf, metrics, circuit-breaker, Hunspell,
+Lucene and language-detector dependencies. With these changes the bundle is 93.8 MiB installed and
+45.0 MiB as tar.gz, down from 111.7 / 84.9 MiB. The dev and held-out corpus output is unchanged.
+See decision doc 0001, "Bundle size (phase 2 trim)".
 
 ## Protocol v1 (JSON lines, UTF-8)
 
