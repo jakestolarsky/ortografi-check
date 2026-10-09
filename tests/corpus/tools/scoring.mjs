@@ -1,7 +1,7 @@
 // Scoring logic for engine results against the corpus (format v1). See ../FORMAT.md.
 import { applyEdit, ERROR_CATEGORIES } from './corpus-lib.mjs';
 
-export const SCORING_VERSION = '1.2';
+export const SCORING_VERSION = '1.3';
 
 /** Predictions in a non-error category (e.g. style, other) are reported apart, not scored. */
 export function isExcludedCategory(category, opts = {}) {
@@ -15,10 +15,33 @@ export function rangesMatch(e, p, mode = 'overlap') {
   return p.start < e.end && e.start < p.end;
 }
 
-/** Is a predicted replacement equivalent to some acceptable fix (full-text comparison)? */
+/** Engine range lies within the expected range (zero-length insertions inside or at the edges count). */
+export function rangeWithin(e, p) {
+  return p.start >= e.start && p.end <= e.end;
+}
+
+const nfc = (t) => t.normalize('NFC');
+
+/** Apply several non-overlapping edits [{start, end, replacement}] to text (right to left). */
+export function applyEdits(text, edits) {
+  const sorted = [...edits].sort((x, y) => y.start - x.start || y.end - x.end);
+  for (let i = 1; i < sorted.length; i++) if (sorted[i].end > sorted[i - 1].start) return null; // overlapping edits
+  return sorted.reduce((t, ed) => applyEdit(t, ed.start, ed.end, ed.replacement), text);
+}
+
+/** Does applying these engine edits give the same sentence (NFC) as some acceptable expected fix? */
+export function editsAccepted(text, expected, edits) {
+  const got = applyEdits(text, edits);
+  if (got === null) return false;
+  return expected.fixes.some((f) => nfc(applyEdit(text, expected.start, expected.end, f)) === nfc(got));
+}
+
+/**
+ * Fix hit for one engine issue (scoring 1.3): the engine range must lie within the
+ * expected range AND the resulting sentence must equal an acceptable corrected sentence.
+ */
 export function replacementAccepted(text, expected, predicted, replacement) {
-  const got = applyEdit(text, predicted.start, predicted.end, replacement);
-  return expected.fixes.some((f) => applyEdit(text, expected.start, expected.end, f) === got);
+  return rangeWithin(expected, predicted) && editsAccepted(text, expected, [{ start: predicted.start, end: predicted.end, replacement }]);
 }
 
 function pairInfo(text, e, p) {
@@ -32,24 +55,58 @@ function pairInfo(text, e, p) {
   return { top, any, exact, catOk, score };
 }
 
+/** Every way to pick one replacement per issue, capped (first replacements first). */
+function* replacementCombos(preds, cap = 256) {
+  const lists = preds.map((p) => p.replacements);
+  const idx = lists.map(() => 0);
+  for (let n = 0; n < cap; n++) {
+    yield preds.map((p, i) => ({ start: p.start, end: p.end, replacement: lists[i][idx[i]] }));
+    let k = lists.length - 1;
+    while (k >= 0 && ++idx[k] >= lists[k].length) { idx[k] = 0; k -= 1; }
+    if (k < 0) return;
+  }
+}
+
+/**
+ * Two-edit phrases: several engine issues inside one expected range whose fixes, applied
+ * together, give an acceptable sentence count as ONE hit (no FP for the others).
+ */
+function groupInfo(text, e, predicted, pis) {
+  const preds = pis.map((i) => predicted[i]);
+  if (preds.some((p) => !Array.isArray(p.replacements) || p.replacements.length === 0)) return null;
+  const top = editsAccepted(text, e, preds.map((p) => ({ start: p.start, end: p.end, replacement: p.replacements[0] })));
+  let any = top;
+  if (!any) for (const c of replacementCombos(preds)) if (editsAccepted(text, e, c)) { any = true; break; }
+  if (!any) return null;
+  const catOk = preds.every((p) => p.category === e.category);
+  return { top, any, exact: false, catOk, group: true, score: 500 + (top ? 100 : 0) + 10 + (catOk ? 1 : 0) };
+}
+
 /** One-to-one greedy assignment of predicted to expected issues for one example. */
 export function matchExample(text, expected, predicted, opts = {}) {
   const mode = opts.match ?? 'overlap';
   const pairs = [];
-  expected.forEach((e, ei) => predicted.forEach((p, pi) => {
-    if (!rangesMatch(e, p, mode)) return;
-    const info = pairInfo(text, e, p);
-    if (opts.strictCategory && !info.catOk) return;
-    pairs.push({ ei, pi, ...info });
-  }));
+  expected.forEach((e, ei) => {
+    predicted.forEach((p, pi) => {
+      if (!rangesMatch(e, p, mode)) return;
+      const info = pairInfo(text, e, p);
+      if (opts.strictCategory && !info.catOk) return;
+      pairs.push({ ei, pi, pis: [pi], ...info });
+    });
+    if (mode === 'exact' || e.fixes.length === 0) return;
+    const inside = predicted.map((p, pi) => (rangeWithin(e, p) ? pi : -1)).filter((pi) => pi >= 0);
+    if (inside.length < 2 || inside.length > 4) return;
+    const g = groupInfo(text, e, predicted, inside);
+    if (g && !(opts.strictCategory && !g.catOk)) pairs.push({ ei, pi: inside[0], pis: inside, ...g });
+  });
   pairs.sort((a, b) => b.score - a.score || a.ei - b.ei || a.pi - b.pi);
   const usedE = new Set();
   const usedP = new Set();
   const matches = [];
   for (const pr of pairs) {
-    if (usedE.has(pr.ei) || usedP.has(pr.pi)) continue;
+    if (usedE.has(pr.ei) || pr.pis.some((i) => usedP.has(i))) continue;
     usedE.add(pr.ei);
-    usedP.add(pr.pi);
+    pr.pis.forEach((i) => usedP.add(i));
     matches.push(pr);
   }
   return {
@@ -59,7 +116,7 @@ export function matchExample(text, expected, predicted, opts = {}) {
   };
 }
 
-const emptyBucket = () => ({ tp: 0, fp: 0, fn: 0, with_fixes: 0, top1_ok: 0, any_ok: 0, category_mismatches: 0 });
+const emptyBucket = () => ({ tp: 0, fp: 0, fn: 0, with_fixes: 0, top1_ok: 0, any_ok: 0, category_mismatches: 0, multi_edit_hits: 0 });
 const ratio = (a, b) => (b === 0 ? null : a / b);
 
 function finish(b) {
@@ -134,6 +191,7 @@ export function scoreCorpus(corpus, results, opts = {}) {
       for (const b of [bucket(e.category), overall]) {
         b.tp += 1;
         if (!m.catOk) b.category_mismatches += 1;
+        if (m.group) b.multi_edit_hits += 1;
         if (e.fixes.length > 0) {
           b.with_fixes += 1;
           if (m.top) b.top1_ok += 1;
@@ -168,6 +226,12 @@ export function scoreCorpus(corpus, results, opts = {}) {
 
   const categories = {};
   for (const [c, b] of [...buckets.entries()].sort()) categories[c] = finish(b);
+  // Strict exact-span metric, reported alongside the default (FORMAT.md "Scoring" 9).
+  let exactSpan;
+  if ((opts.match ?? 'overlap') !== 'exact' && !opts.noExactSpan) {
+    const x = scoreCorpus(corpus, results, { ...opts, match: 'exact', noExactSpan: true });
+    exactSpan = { overall: x.overall, categories: x.categories };
+  }
   return {
     scoring_version: SCORING_VERSION,
     options: { match: opts.match ?? 'overlap', strict_category: !!opts.strictCategory, score_all_categories: !!opts.scoreAllCategories, split: opts.split ?? 'all' },
@@ -182,5 +246,6 @@ export function scoreCorpus(corpus, results, opts = {}) {
     incomplete,
     release_critical_failures: releaseCriticalFailures,
     per_example: perExample,
+    ...(exactSpan ? { exact_span: exactSpan } : {}),
   };
 }
