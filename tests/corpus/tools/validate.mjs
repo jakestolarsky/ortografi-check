@@ -4,7 +4,7 @@
 //   node validate.mjs <corpus.jsonl>...
 //   node validate.mjs --engine <results.jsonl> --corpus <corpus.jsonl>...
 import { pathToFileURL } from 'node:url';
-import { readJsonl, validateCorpus, validateEngineResult } from './corpus-lib.mjs';
+import { readJsonl, validateCorpus, validateEngineResult, checkSplitLocation } from './corpus-lib.mjs';
 
 function parseArgs(argv) {
   const a = { corpus: [], engine: null, quiet: false };
@@ -35,9 +35,11 @@ export function main(argv) {
   }
   // Validate per file for line numbers, then ids across files.
   for (const f of args.corpus) {
-    const r = validateCorpus(all.filter((e) => e.file === f), f);
+    const entries = all.filter((e) => e.file === f);
+    const r = validateCorpus(entries, f);
     errors.push(...r.errors);
     warnings.push(...r.warnings);
+    errors.push(...checkSplitLocation(f, entries));
   }
   const ids = new Map();
   for (const { file, line, value } of all) {

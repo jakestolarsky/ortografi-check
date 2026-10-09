@@ -203,3 +203,12 @@ export function validateEngineResult(res, example) {
   });
   return errors;
 }
+
+/** Held-out examples live under a `heldout/` directory and nowhere else (FORMAT.md "Splits"). */
+export function checkSplitLocation(path, entries) {
+  const inHeldoutDir = /(^|[\\/])heldout[\\/]/.test(path);
+  const want = inHeldoutDir ? 'heldout' : 'dev';
+  return entries
+    .filter(({ value }) => value && value.split !== undefined && value.split !== want)
+    .map(({ line, value }) => `${path}:${line} (${value.id}): split "${value.split}" but file is ${inHeldoutDir ? 'under' : 'outside'} heldout/ (expected "${want}")`);
+}

@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // Score engine results against the corpus. See ../FORMAT.md ("Scoring").
 // Usage: node score.mjs --corpus <corpus.jsonl>... --results <results.jsonl>
-//          [--json] [--match overlap|exact] [--strict-category] [--fail-on-release-critical]
+//          [--split all|dev|heldout] [--json] [--match overlap|exact] [--strict-category]
+//          [--score-all-categories] [--fail-on-release-critical]
+// Results for examples outside the selected split are ignored.
 import { pathToFileURL } from 'node:url';
 import { readJsonl, validateCorpus, validateEngineResult } from './corpus-lib.mjs';
 import { scoreCorpus } from './scoring.mjs';
 
 function parseArgs(argv) {
-  const a = { corpus: [], results: null, json: false, match: 'overlap', strictCategory: false, failOnRc: false };
+  const a = { corpus: [], results: null, json: false, match: 'overlap', strictCategory: false, scoreAllCategories: false, split: 'all', failOnRc: false };
   for (let i = 0; i < argv.length; i++) {
     const x = argv[i];
     if (x === '--corpus') a.corpus.push(argv[++i]);
@@ -15,11 +17,14 @@ function parseArgs(argv) {
     else if (x === '--json') a.json = true;
     else if (x === '--match') a.match = argv[++i];
     else if (x === '--strict-category') a.strictCategory = true;
+    else if (x === '--score-all-categories') a.scoreAllCategories = true;
+    else if (x === '--split') a.split = argv[++i];
     else if (x === '--fail-on-release-critical') a.failOnRc = true;
     else throw new Error(`unknown argument ${x}`);
   }
   if (!a.corpus.length || !a.results) throw new Error('need --corpus and --results');
   if (!['overlap', 'exact'].includes(a.match)) throw new Error('--match must be overlap or exact');
+  if (!['all', 'dev', 'heldout'].includes(a.split)) throw new Error('--split must be all, dev or heldout');
   return a;
 }
 
@@ -33,9 +38,15 @@ export function formatReport(r) {
   const widths = rows[0].map((_, i) => Math.max(...rows.map((row) => String(row[i]).length)));
   const lines = rows.map((row) => row.map((v, i) => (i === 0 ? String(v).padEnd(widths[i]) : String(v).padStart(widths[i]))).join('  '));
   lines.push('');
-  lines.push(`examples: ${r.examples}  (match=${r.options.match}${r.options.strict_category ? ', strict-category' : ''})`);
+  const ex = Object.entries(r.excluded_categories);
+  if (ex.length) lines.push(`not scored (non-error categories): ${ex.map(([c, v]) => `${c} ${v.predictions} (${v.on_clean_examples} on clean)`).join(', ')}`);
+  const splits = Object.entries(r.splits).map(([k, v]) => `${k} ${v}`).join(', ');
+  const opts = [`match=${r.options.match}`, `split=${r.options.split}`];
+  if (r.options.strict_category) opts.push('strict-category');
+  if (r.options.score_all_categories) opts.push('score-all-categories');
+  lines.push(`examples: ${r.examples} (${splits})  (${opts.join(', ')}; scoring ${r.scoring_version})`);
   const cs = r.clean_set;
-  lines.push(`clean set: ${cs.with_false_positive}/${cs.examples} examples with a false positive (${pct(cs.false_positive_rate).trim()})${cs.ids.length ? `: ${cs.ids.join(', ')}` : ''}`);
+  lines.push(`clean set: ${cs.with_false_positive}/${cs.examples} examples with a false positive (${pct(cs.false_positive_rate).trim()}; error categories ${cs.with_error_category_fp}, style/other only ${cs.with_only_excluded_category})${cs.ids.length ? `: ${cs.ids.join(', ')}` : ''}`);
   if (r.missing.length) lines.push(`missing results (${r.missing.length}): ${r.missing.join(', ')}`);
   if (r.incomplete.length) lines.push(`incomplete/error results (${r.incomplete.length}): ${r.incomplete.join(', ')}`);
   lines.push(`release-critical failures: ${r.release_critical_failures.length ? r.release_critical_failures.map((f) => f.id).join(', ') : 'none'}`);
@@ -52,10 +63,13 @@ export function main(argv) {
     if (v.errors.length) throw new Error(`corpus invalid (run validate.mjs):\n${v.errors.join('\n')}`);
     corpus.push(...entries.map((e) => e.value));
   }
-  const byId = new Map(corpus.map((e) => [e.id, e]));
+  const allById = new Map(corpus.map((e) => [e.id, e]));
+  const selected = args.split === 'all' ? corpus : corpus.filter((e) => e.split === args.split);
+  const byId = new Map(selected.map((e) => [e.id, e]));
   const results = new Map();
   const errs = [];
   for (const { line, value } of readJsonl(args.results)) {
+    if (value && !byId.has(value.id) && allById.has(value.id)) continue; // other split
     const ex = value && byId.get(value.id);
     if (!ex) { errs.push(`${args.results}:${line}: unknown id ${JSON.stringify(value && value.id)}`); continue; }
     if (results.has(value.id)) { errs.push(`${args.results}:${line}: duplicate result for ${value.id}`); continue; }
@@ -63,7 +77,7 @@ export function main(argv) {
     results.set(value.id, value);
   }
   if (errs.length) throw new Error(`engine results invalid:\n${errs.join('\n')}`);
-  const report = scoreCorpus(corpus, results, { match: args.match, strictCategory: args.strictCategory });
+  const report = scoreCorpus(selected, results, { match: args.match, strictCategory: args.strictCategory, scoreAllCategories: args.scoreAllCategories, split: args.split });
   console.log(args.json ? JSON.stringify(report, null, 2) : formatReport(report));
   return args.failOnRc && report.release_critical_failures.length ? 1 : 0;
 }

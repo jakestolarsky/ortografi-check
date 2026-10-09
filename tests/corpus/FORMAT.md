@@ -14,7 +14,8 @@ punctuation knowledge has verified it (`review_status`).
 
 | Path | Purpose |
 |---|---|
-| `tests/corpus/data/*.jsonl` | Corpus examples, one JSON object per line (canonical source) |
+| `tests/corpus/data/*.jsonl` | Dev examples, one JSON object per line (canonical source): `phase0-starter.jsonl`, `phase1-dev.jsonl` |
+| `tests/corpus/data/heldout/*.jsonl` | Held-out examples (`split: "heldout"`), never used for tuning |
 | `tests/corpus/schema/corpus-example.v1.schema.json` | JSON Schema for one corpus line |
 | `tests/corpus/schema/engine-result.v1.schema.json` | JSON Schema for one line of engine output fed to the scorer |
 | `tests/corpus/tools/validate.mjs` | Validator: schema rules + UTF-16 range consistency |
@@ -75,12 +76,41 @@ UTF-16, the same layout the app contract uses, so offsets need no conversion.
 | `start`, `end` | int | UTF-16 range, `0 ≤ start ≤ end ≤ text_utf16_length`. |
 | `original` | string | Must equal `text.slice(start, end)` (`""` for zero-length). Guards against off-by-one ranges. |
 | `category` | `"spelling"` \| `"punctuation"` \| `"grammar"` | The three user-facing categories (PLAN.md §6). |
-| `subcategory` | string | Dotted, starts with the category, e.g. `spelling.o_u`, `spelling.rz_z`, `spelling.ch_h`, `spelling.nie`, `spelling.capitalization`, `spelling.diacritics`, `spelling.typo`, `spelling.reform_2026`, `punctuation.missing_comma`, `punctuation.extra_comma`, `punctuation.spacing`, `punctuation.whitespace`, `punctuation.abbreviation`, `punctuation.quotes`, `grammar.inflection`, `grammar.agreement`. Open list. |
+| `subcategory` | string | Dotted, starts with the category, e.g. `spelling.o_u`, `spelling.rz_z`, `spelling.ch_h`, `spelling.nie`, `spelling.capitalization`, `spelling.diacritics`, `spelling.typo`, `spelling.compound`, `spelling.reform_2026`, `punctuation.missing_comma`, `punctuation.extra_comma`, `punctuation.spacing`, `punctuation.whitespace`, `punctuation.abbreviation`, `punctuation.quotes`, `grammar.inflection`, `grammar.agreement`, `grammar.comparative`, `grammar.idiom`. Open list. |
 | `fixes` | string[] | Acceptable replacements for `[start, end)`, best first. `""` = delete. `[]` = a warning without a ready fix (PLAN.md §1). |
 | `required` | bool | `false` = optional/acceptable flag: reporting it is neither rewarded nor penalized, missing it is not a miss. |
 | `notes` | string? | Per-issue note. |
 
 Expected issues must not overlap each other (zero-length issues may touch a range edge).
+
+## Splits: dev and held-out
+
+PLAN.md §10 asks for data kept out of rule tuning. Every example has a permanent `split`:
+
+* **`dev`**: use freely for tuning engine rules, category overrides, thresholds and adapter
+  behavior. Files directly under `data/`.
+* **`heldout`**: evaluation only. Files under `data/heldout/`; the validator rejects a
+  `heldout` example outside that directory and a `dev` example inside it.
+
+Policy:
+
+1. **Tune only on dev.** Do not change rules, overrides, dictionaries or thresholds to fix a
+   specific held-out failure. Run the scorer with `--split dev` while iterating.
+2. **Evaluate held-out at milestones** (engine version change, end of a phase, before
+   release) with `--split heldout`, record the numbers in `docs/decisions/` or
+   `benchmarks/results/`, and compare with the previous held-out run.
+3. **Inspect aggregate numbers, not individual held-out sentences.** If a held-out
+   failure exposes a corpus error (wrong annotation), fix the annotation and note it; the
+   example stays held-out.
+4. **Assignments are permanent.** An example never moves between splits; ids are never
+   reused. If held-out data is used for tuning by mistake, mark it in `notes` and add
+   fresh held-out examples to replace it.
+5. **How new examples are assigned.** About 70/30 dev/held-out, stratified by
+   (no-issue sentence or category of the first issue) × `release_critical`. Within each
+   stratum, new examples are ordered by `sha256("ortografi-split-v1:" + id)` and the
+   first ones fill the stratum's 30% held-out quota. Phase 0 examples (`p0-*`) were
+   already used for tuning before the split existed, so they all stay `dev`; the quota
+   for each stratum was filled from new examples only.
 
 ## Engine result line (input to the scorer), schema version `1.0`
 
@@ -118,7 +148,15 @@ One JSON object per line, one line per corpus example:
 4. **Counts.** Matched required issue → TP (counted under the expected category).
    Unmatched required → FN. Unmatched prediction → FP (under the predicted category).
    Matches to optional issues are neutral.
-5. **Metrics** per category and overall: precision, recall, F1; for TPs with fixes,
+5. **Non-error categories.** Predictions whose `category` is a string outside
+   `spelling` / `punctuation` / `grammar` (e.g. `style`, `other`) are **not scored**:
+   they cannot match expected issues and do not count as TP/FP. They are reported per
+   category under `excluded_categories` (total, and how many fell on no-issue
+   sentences). They **do** count toward the false-positive rate on clean sentences,
+   which is split into `with_error_category_fp` and `with_only_excluded_category`.
+   They do not fail a release-critical example. Predictions with no category are still
+   scored (as `unknown`). `--score-all-categories` restores the scoring-1.0 behavior.
+6. **Metrics** per category and overall: precision, recall, F1; for TPs with fixes,
    top-suggestion accuracy and any-suggestion accuracy. Clean set: number and share of
    clean examples with ≥ 1 false positive (PLAN.md target ≤ 2%, report absolute count).
    Release-critical failures are listed by id.
@@ -128,9 +166,13 @@ Scores describe this corpus only, never Polish in general (PLAN.md §10).
 ## Commands
 
 ```sh
-node tests/corpus/tools/validate.mjs tests/corpus/data/*.jsonl
-node tests/corpus/tools/validate.mjs --engine results.jsonl --corpus tests/corpus/data/phase0-starter.jsonl
-node tests/corpus/tools/score.mjs --corpus tests/corpus/data/phase0-starter.jsonl --results results.jsonl [--json] [--match exact] [--strict-category] [--fail-on-release-critical]
+node tests/corpus/tools/validate.mjs tests/corpus/data/*.jsonl tests/corpus/data/heldout/*.jsonl
+node tests/corpus/tools/validate.mjs --engine results.jsonl --corpus tests/corpus/data/*.jsonl
+# while tuning (dev only):
+node tests/corpus/tools/score.mjs --corpus tests/corpus/data/*.jsonl --results results.jsonl --split dev
+# at milestones:
+node tests/corpus/tools/score.mjs --corpus tests/corpus/data/*.jsonl tests/corpus/data/heldout/*.jsonl --results results.jsonl --split heldout
+# options: [--json] [--match exact] [--strict-category] [--score-all-categories] [--fail-on-release-critical]
 node --test tests/corpus/tools/
 ```
 
@@ -143,3 +185,14 @@ node --test tests/corpus/tools/
   prefix `?` (`{{?…}}`) marks an optional issue.
 
 The JSONL file stays the single source of truth; markup is only an input aid.
+
+## Changelog
+
+* **Corpus format 1.0**: unchanged in phase 1 (no schema change). The `split` field
+  existed from the start; phase 1 only assigns `heldout`.
+* **Scoring 1.1** (phase 1): `style`/`other` and any other non-error engine categories
+  are reported separately and excluded from precision and recall, but still count
+  toward the clean-sentence false-positive rate. Added `--split`,
+  `--score-all-categories`, and `scoring_version` plus split counts in the report.
+  The validator now checks that each `split` matches the file's directory.
+* **Scoring 1.0** (phase 0): initial version.

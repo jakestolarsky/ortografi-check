@@ -114,3 +114,41 @@ test('release-critical clean example fails on any false positive', () => {
   assert.deepEqual(ok.release_critical_failures, []);
   assert.equal(ok.overall.f1, null);
 });
+
+test('style/other predictions are reported apart and excluded from P/R, but count on clean sentences', () => {
+  const corpus = [
+    ex('s', 'Mój wójek.', [iss(4, 9, 'spelling', ['wujek'])]),
+    ex('c', 'Kot śpi na kanapie.', []),
+    ex('d', 'Pies śpi.', []),
+  ];
+  const results = new Map([
+    res('s', [{ start: 4, end: 9, category: 'style', replacements: ['wujek'] }, { start: 0, end: 3, category: 'other', replacements: [] }]),
+    res('c', [{ start: 11, end: 18, category: 'style', replacements: ['sofie'] }]),
+    res('d', [{ start: 0, end: 4, category: 'spelling', replacements: ['Pis'] }]),
+  ]);
+  const r = scoreCorpus(corpus, results);
+  assert.equal(r.categories.style, undefined);
+  assert.equal(r.categories.other, undefined);
+  assert.deepEqual([r.overall.tp, r.overall.fp, r.overall.fn], [0, 1, 1]); // a style hit cannot satisfy a spelling issue
+  assert.deepEqual(r.excluded_categories, { style: { predictions: 2, on_clean_examples: 1 }, other: { predictions: 1, on_clean_examples: 0 } });
+  assert.equal(r.clean_set.with_false_positive, 2);
+  assert.equal(r.clean_set.with_error_category_fp, 1);
+  assert.equal(r.clean_set.with_only_excluded_category, 1);
+  assert.equal(r.clean_set.false_positive_rate, 1);
+
+  const all = scoreCorpus(corpus, results, { scoreAllCategories: true });
+  assert.equal(all.categories.style.fp, 1);
+  assert.equal(all.overall.tp, 1);
+  assert.deepEqual(all.excluded_categories, {});
+});
+
+test('predictions without a category are still scored', () => {
+  const r = scoreCorpus([ex('c', 'Kot śpi.', [])], new Map([res('c', [{ start: 0, end: 3 }])]));
+  assert.equal(r.categories.unknown.fp, 1);
+});
+
+test('report counts examples per split', () => {
+  const r = scoreCorpus([ex('a', 'A.', [], { split: 'dev' }), ex('b', 'B.', [], { split: 'heldout' })], new Map([res('a', []), res('b', [])]), { split: 'all' });
+  assert.deepEqual(r.splits, { dev: 1, heldout: 1 });
+  assert.equal(r.options.split, 'all');
+});

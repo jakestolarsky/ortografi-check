@@ -103,3 +103,13 @@ test('engine results are range-checked against the corpus text', () => {
   assert.match(validateEngineResult({ ...ok, issues: [{ start: 0, end: 99 }] }, ex).join(), /out of bounds/);
   assert.match(validateEngineResult({ ...ok, status: 'done' }, ex).join(), /status must be one of/);
 });
+
+test('split must match file location', async () => {
+  const { checkSplitLocation } = await import('./corpus-lib.mjs');
+  const dev = { line: 1, value: base({ split: 'dev' }) };
+  const held = { line: 2, value: base({ id: 't-2', split: 'heldout' }) };
+  assert.deepEqual(checkSplitLocation('data/a.jsonl', [dev]), []);
+  assert.deepEqual(checkSplitLocation('data/heldout/b.jsonl', [held]), []);
+  assert.match(checkSplitLocation('data/a.jsonl', [held]).join(), /expected "dev"/);
+  assert.match(checkSplitLocation('data/heldout/b.jsonl', [dev]).join(), /expected "heldout"/);
+});
