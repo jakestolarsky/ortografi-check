@@ -184,6 +184,16 @@ class LanguageToolCheckerTest {
   }
 
   @Test
+  void normalizingEngineCommaFixKeepsDecomposedLettersOfTheOriginal() throws Exception {
+    String text = "Wiem z\u0307e c\u0301ma lubi s\u0301wiatło.";
+    List<Issue> issues = new NormalizingChecker(checker).check(text);
+    assertEquals(1, issues.size(), issues::toString);
+    Issue i = issues.get(0);
+    String fixed = text.substring(0, i.start()) + i.replacements().get(0) + text.substring(i.end());
+    assertEquals("Wiem, z\u0307e c\u0301ma lubi s\u0301wiatło.", fixed);
+  }
+
+  @Test
   void emptyTextHasNoIssues() throws Exception {
     assertEquals(List.of(), checker.check(""));
   }

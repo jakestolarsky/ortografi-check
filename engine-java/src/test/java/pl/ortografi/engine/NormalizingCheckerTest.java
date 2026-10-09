@@ -49,7 +49,8 @@ class NormalizingCheckerTest {
     for (Issue i : issues) {
       assertEquals("z\u0307o\u0301łw", original.substring(i.start(), i.end()));
     }
-    assertEquals(List.of("żółwie"), issues.get(0).replacements());
+    // The suggestion keeps the user's decomposed letters; only the edit itself is new text.
+    assertEquals(List.of("z\u0307o\u0301łwie"), issues.get(0).replacements());
     assertEquals("FAKE", issues.get(0).ruleId());
   }
 
@@ -79,5 +80,54 @@ class NormalizingCheckerTest {
     NormalizingChecker c = new NormalizingChecker(new Fake());
     assertEquals("fake", c.engineVersion());
     assertEquals("pl-PL", c.languageCode());
+  }
+
+  /** Fake that reports one issue with a fixed NFC range and replacements. */
+  private static Checker oneIssue(String nfcFragment, String... replacements) {
+    return new Fake() {
+      @Override
+      public List<Issue> check(String text) {
+        int at = text.indexOf(nfcFragment);
+        return List.of(new Issue(at, at + nfcFragment.length(), "R", "punctuation", "PUNCTUATION",
+            "typographical", "m", List.of(replacements)));
+      }
+    };
+  }
+
+  private static String apply(String text, Issue i, String replacement) {
+    return text.substring(0, i.start()) + replacement + text.substring(i.end());
+  }
+
+  @Test
+  void commaInsertionDoesNotNormalizeNeighbouringDecomposedLetters() throws Exception {
+    String original = "Wiem z\u0307e c\u0301ma lata.";
+    Issue i = new NormalizingChecker(oneIssue("Wiem że", "Wiem, że")).check(original).get(0);
+    assertEquals("Wiem z\u0307e", original.substring(i.start(), i.end()));
+    assertEquals(List.of("Wiem, z\u0307e"), i.replacements());
+    assertEquals("Wiem, z\u0307e c\u0301ma lata.", apply(original, i, i.replacements().get(0)));
+  }
+
+  @Test
+  void replacedDecomposedLetterBecomesTheSuggestedLetterOnly() throws Exception {
+    String original = "Z\u0307le sie\u0328 czuje\u0328.";
+    Issue i = new NormalizingChecker(oneIssue("Żle", "Źle", "Złe")).check(original).get(0);
+    assertEquals(List.of("Źle", "Złe"), i.replacements());
+    assertEquals("Źle sie\u0328 czuje\u0328.", apply(original, i, "Źle"));
+  }
+
+  @Test
+  void deletionAndEmptyReplacementKeepDecomposedContext() throws Exception {
+    String original = "Kupiłem chleb, i mleko z\u0307ółte.";
+    Issue i = new NormalizingChecker(oneIssue(", i mleko ż", " i mleko ż")).check(original).get(0);
+    assertEquals(List.of(" i mleko z\u0307"), i.replacements());
+    Issue d = new NormalizingChecker(oneIssue("ż", "")).check(original).get(0);
+    assertEquals(List.of(""), d.replacements());
+  }
+
+  @Test
+  void replacementsOfNfcInputAreUntouched() throws Exception {
+    String original = "Wiem że ćma lata.";
+    Issue i = new NormalizingChecker(oneIssue("Wiem że", "Wiem, że")).check(original).get(0);
+    assertEquals(List.of("Wiem, że"), i.replacements());
   }
 }
