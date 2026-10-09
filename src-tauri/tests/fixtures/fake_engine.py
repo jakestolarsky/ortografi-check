@@ -42,12 +42,12 @@ for line in sys.stdin:
             sys.stdout.buffer.write(f.read().rstrip(b"\n") + b"\n")
             sys.stdout.buffer.flush()
         continue
+    if "SLEEP:" in text:
+        time.sleep(int(text.split("SLEEP:")[1].split()[0]) / 1000)
     if "CRASH" in text:
         sys.exit(3)
     if "SLOW" in text:
         time.sleep(5)
-    if "SLEEP:" in text:
-        time.sleep(int(text.split("SLEEP:")[1].split()[0]) / 1000)
     if "GARBAGE" in text:
         out.write("this is not json\n"); out.flush(); continue
     if "NOVERS" in text:

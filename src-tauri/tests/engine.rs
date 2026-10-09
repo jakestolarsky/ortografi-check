@@ -264,9 +264,10 @@ fn status_transitions_are_reported() {
     s.check(check("c1", 1, 1, "ok"));
     assert_eq!(take(&seen), ["busy", "ready"]);
     s.check(check("c2", 2, 1, "CRASH"));
-    assert_eq!(take(&seen), ["busy", "restarting"]);
+    assert!(wait_for(&s, EngineState::Ready), "background respawn");
+    assert_eq!(take(&seen), ["busy", "restarting", "ready"]);
     s.check(check("c3", 3, 1, "ok"));
-    assert_eq!(take(&seen), ["ready", "busy", "ready"]);
+    assert_eq!(take(&seen), ["busy", "ready"]);
     s.check(check("c4", 4, 1, "CRASH"));
     s.check(check("c5", 5, 1, "CRASH"));
     assert_eq!(take(&seen).last(), Some(&"unavailable"));
@@ -308,6 +309,87 @@ fn superseded_waiting_check_is_never_sent() {
     let sent: Vec<String> = std::fs::read_to_string(&log).unwrap().lines()
         .filter_map(|l| l.strip_prefix("recv ").map(String::from)).collect();
     assert_eq!(sent, ["a", "c"]);
+}
+
+// ---- background respawn after a failure ----
+
+fn wait_for(s: &Supervisor, want: EngineState) -> bool {
+    let t0 = Instant::now();
+    while t0.elapsed() < Duration::from_secs(3) {
+        if s.state() == want {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    false
+}
+
+fn received(log: &str) -> Vec<String> {
+    std::fs::read_to_string(log).unwrap().lines()
+        .filter_map(|l| l.strip_prefix("recv ").map(String::from)).collect()
+}
+
+#[test]
+fn background_respawn_after_crash_reaches_ready_without_a_new_check() {
+    let log = format!("{}/spawns", tempdir());
+    let s = Supervisor::new(cfg_logged(&log));
+    assert_eq!(s.check(check("a", 1, 1, "CRASH")).error_code(), Some("ENGINE_UNAVAILABLE"));
+    assert!(wait_for(&s, EngineState::Ready));
+    assert_eq!(spawns(&log), 2);
+    assert_eq!(received(&log), ["a"], "failed check must not be resent");
+}
+
+#[test]
+fn background_respawn_after_timeout_reaches_ready_without_a_new_check() {
+    let log = format!("{}/spawns", tempdir());
+    let mut c = cfg_logged(&log);
+    c.check_timeout_base = Duration::from_millis(300);
+    let s = Supervisor::new(c);
+    assert_eq!(s.check(check("a", 1, 1, "SLEEP:800")).error_code(), Some("TIMEOUT"));
+    assert!(wait_for(&s, EngineState::Ready));
+    assert_eq!(spawns(&log), 2);
+    assert_eq!(received(&log), ["a"]);
+}
+
+fn failed_then_waiting(text_a: &'static str, base_ms: u64) -> (Option<Value>, Option<Value>, Vec<String>) {
+    let log = format!("{}/spawns", tempdir());
+    let mut c = cfg_logged(&log);
+    c.check_timeout_base = Duration::from_millis(base_ms);
+    let s = Arc::new(Supervisor::new(c));
+    s.start().unwrap();
+    let s1 = s.clone();
+    let a = std::thread::spawn(move || s1.submit(check("a", 1, 1, text_a)).map(|m| m.raw));
+    std::thread::sleep(Duration::from_millis(100));
+    let s2 = s.clone();
+    let b = std::thread::spawn(move || s2.submit(check("b", 2, 1, "ok")).map(|m| m.raw));
+    let (a, b) = (a.join().unwrap(), b.join().unwrap());
+    (a, b, received(&log))
+}
+
+#[test]
+fn waiting_check_is_delivered_once_after_a_crash() {
+    let (a, b, sent) = failed_then_waiting("SLEEP:300 CRASH", 800);
+    let a = a.unwrap();
+    assert_eq!(a["code"], "ENGINE_UNAVAILABLE");
+    assert_eq!((a["docVersion"].as_u64(), a["settingsVersion"].as_u64()), (Some(1), Some(1)));
+    assert_eq!(b.unwrap()["type"], "result");
+    assert_eq!(sent, ["a", "b"], "a sent once and never retried; b sent once");
+}
+
+#[test]
+fn waiting_check_is_delivered_once_after_a_timeout() {
+    let (a, b, sent) = failed_then_waiting("SLEEP:800", 300);
+    assert_eq!(a.unwrap()["code"], "TIMEOUT");
+    assert_eq!(b.unwrap()["type"], "result");
+    assert_eq!(sent, ["a", "b"]);
+}
+
+#[test]
+fn waiting_check_is_delivered_once_after_an_invalid_line() {
+    let (a, b, sent) = failed_then_waiting("SLEEP:300 GARBAGE", 800);
+    assert_eq!(a.unwrap()["code"], "ENGINE_ERROR");
+    assert_eq!(b.unwrap()["type"], "result");
+    assert_eq!(sent, ["a", "b"]);
 }
 
 // ---- stale-result rejection ----
