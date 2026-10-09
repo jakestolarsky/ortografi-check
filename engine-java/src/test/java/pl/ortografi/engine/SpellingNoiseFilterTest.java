@@ -46,6 +46,40 @@ class SpellingNoiseFilterTest {
   }
 
   @Test
+  void sentenceInitialWordIsNeverTreatedAsAName() {
+    // "Pszyjehałem" is two edits from "Przyjechałem": no close suggestion, so only the position decides.
+    List<String> far = List.of("Przyjechałem");
+    for (String text : List.of("Pszyjehałem wczoraj.", "  Pszyjehałem wczoraj.", "Tak było. Pszyjehałem wczoraj.",
+        "Tak było!  Pszyjehałem wczoraj.", "Tak było?\nPszyjehałem wczoraj.", "Tak było…\r\nPszyjehałem wczoraj.",
+        "Lista zakupów\nPszyjehałem wczoraj.", "Powiedział: Pszyjehałem wczoraj.", "„Pszyjehałem wczoraj” – powiedział.",
+        "Tak było. „Pszyjehałem wczoraj”.", "— Pszyjehałem wczoraj — powiedział.", "Tak było.\n– Pszyjehałem wczoraj.",
+        "(Pszyjehałem wczoraj.)", "Tak było. [Pszyjehałem wczoraj.]", "»Pszyjehałem wczoraj«.", "“Pszyjehałem wczoraj”.",
+        "Tak było.\n- Pszyjehałem wczoraj.", "Tak było. (\u201EPszyjehałem wczoraj”.)")) {
+      assertNull(reason(text, "Pszyjehałem", far), text);
+    }
+    // Mid-sentence it is still a name; an opening quote or dash after a word does not start a sentence.
+    assertEquals("name", reason("Spotkałem wczoraj Pszyjehałem.", "Pszyjehałem", far));
+    assertEquals("name", reason("Spotkałem wczoraj „Xiaolonga” na konferencji.", "Xiaolonga", List.of()));
+    assertEquals("name", reason("Spotkałem go — Xiaolonga — na konferencji.", "Xiaolonga", List.of()));
+  }
+
+  @Test
+  void otherShapeFiltersDoNotHideASentenceInitialTypo() {
+    List<String> far = List.of("Przyjechałem");
+    // The next word is also unknown but has a close suggestion: still a typo pair, not a foreign phrase.
+    assertNull(reason("Pszyjehałem wczorj do domu.", "Pszyjehałem", far, "wczorj"));
+    assertNull(reason("Tak było. Pszyjehałem wczorj do domu.", "wczorj", List.of("wczoraj"), "Pszyjehałem"));
+    // Two far typos in a row at sentence start: neither is hidden as a foreign phrase.
+    assertNull(reason("Pszyjehałem wczorjjaj do domu.", "Pszyjehałem", far, "wczorjjaj"));
+    assertNull(reason("Pszyjehałem wczorjjaj do domu.", "wczorjjaj", List.of("wczoraj"), "Pszyjehałem"));
+    // A capitalised hyphenated word at sentence start is an ordinary compound, not a name.
+    assertNull(reason("Biało-czerowny sztandar powiewał.", "Biało-czerowny", List.of("Biało-czerwony")));
+    assertNull(reason("Tak było.\n„Biało-czerowny sztandar”.", "Biało-czerowny", List.of()));
+    assertEquals("hyphenated-name", reason("Neuville-Vitasse leży we Francji.", "Neuville-Vitasse", List.of()),
+        "both parts capitalised is still a name at sentence start");
+  }
+
+  @Test
   void hyphenatedNamesAndCenturies() {
     assertEquals("hyphenated-name", reason("Miasto Neuville-Vitasse leży we Francji.", "Neuville-Vitasse", List.of()));
     assertEquals("hyphenated-name", reason("To XIV-wieczny kościół.", "XIV-wieczny", List.of()));
@@ -83,5 +117,18 @@ class SpellingNoiseFilterTest {
     assertEquals(1, spelling("Idę jutro do szkołly.").size());
     assertEquals(List.of(), spelling("Gatunek Abrocoma budini żyje w Andach."));
     assertEquals(List.of(), spelling("Spotkałem wczoraj Xiaolonga na konferencji."));
+  }
+
+  @Test
+  void realEngineFlagsATypoInTheFirstWordOfASentence() throws Exception {
+    for (String text : List.of("Wczorja poszłam do sklepu.", "Było zimno. Wczorja poszłam do sklepu.",
+        "Było zimno.\nWczorja poszłam do sklepu.", "Powiedziała: „Wczorja poszłam do sklepu”.",
+        "„Wczorja poszłam do sklepu” – powiedziała.", "— Wczorja poszłam do sklepu — powiedziała.",
+        "Pszyjehałem wczoraj do domu.", "Było zimno.\n\nPszyjehałem wczoraj do domu.")) {
+      List<Issue> sp = spelling(text);
+      assertEquals(1, sp.size(), text);
+      String first = text.contains("Wczorja") ? "Wczorja" : "Pszyjehałem";
+      assertEquals(text.indexOf(first), sp.get(0).start(), text);
+    }
   }
 }

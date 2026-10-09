@@ -42,7 +42,11 @@ final class SpellingNoiseFilter {
       if (Character.isLetter(c) && POLISH_LETTERS.indexOf(Character.toLowerCase(c)) < 0) return "foreign-letters";
     }
     boolean close = suggestions.stream().anyMatch(s -> distance(s, w) <= 1);
-    for (int[] o : otherFlagged) {
+    boolean initial = sentenceStart(text, start);
+    // The first word of a sentence is never part of a foreign phrase: a typo there next to another
+    // unknown word ("Pszyjehałem wczorj") would otherwise hide both.
+    for (int[] o : initial ? List.<int[]>of() : otherFlagged) {
+      if (sentenceStart(text, o[0])) continue;
       int from = Math.min(end, o[1]), to = Math.max(start, o[0]);
       if ((o[0] >= end || o[1] <= start) && from <= to && SPACES.matcher(text.substring(from, to)).matches()) {
         // Latin binomial: a capitalised unknown genus right before an unknown lowercase epithet.
@@ -52,22 +56,47 @@ final class SpellingNoiseFilter {
       }
     }
     int dash = w.indexOf('-', 1);
-    if (dash > 0 && dash < w.length() - 1 && (Character.isUpperCase(w.codePointAt(0)) || ROMAN_PREFIX.matcher(w).matches())) {
+    // At sentence start a capital proves nothing, so the part after the hyphen must be capitalised too.
+    boolean nameLike = initial ? Character.isUpperCase(w.codePointAt(Math.min(dash + 1, w.length() - 1)))
+        : Character.isUpperCase(w.codePointAt(0));
+    if (dash > 0 && dash < w.length() - 1 && (nameLike || ROMAN_PREFIX.matcher(w).matches())) {
       return "hyphenated-name";
     }
-    if (Character.isUpperCase(w.codePointAt(0)) && !sentenceStart(text, start)
+    if (Character.isUpperCase(w.codePointAt(0)) && !initial
         && suggestions.stream().noneMatch(s -> !s.isEmpty() && Character.isUpperCase(s.codePointAt(0)) && distance(s, w) <= 1)) {
       return "name";
     }
     return null;
   }
 
-  private static boolean sentenceStart(String text, int start) {
-    String before = text.substring(0, start).stripTrailing();
-    if (before.isEmpty()) return true;
-    char last = before.charAt(before.length() - 1);
-    return ".!?:…\n„\"«(".indexOf(last) >= 0;
+  /** Quotes, brackets, dashes and list bullets that can open a sentence before its first word. */
+  private static final String OPENERS = "„\"“”‚‘'«»‹›([{—–-•*";
+  private static final String TERMINATORS = ".!?…:";
+
+  /**
+   * Whether the word at {@code start} is the first word of a sentence: at the start of the text, on a
+   * new line, or after . ! ? … or : (with any whitespace between), allowing a run of opening quotes,
+   * brackets, dashes or bullets right before the word. A quote or dash after an ordinary word does
+   * not start a sentence ("spotkałem „Xiaolonga”").
+   */
+  static boolean sentenceStart(String text, int start) {
+    int i = start;
+    while (true) {
+      while (i > 0 && isSpace(text.charAt(i - 1))) {
+        if (isLineBreak(text.charAt(i - 1))) return true;
+        i--;
+      }
+      if (i == 0) return true;
+      char c = text.charAt(i - 1);
+      if (TERMINATORS.indexOf(c) >= 0) return true;
+      if (OPENERS.indexOf(c) < 0) return false;
+      i--;
+    }
   }
+
+  private static boolean isSpace(char c) { return Character.isWhitespace(c) || c == '\u00a0' || c == '\u202f'; }
+
+  private static boolean isLineBreak(char c) { return c == '\n' || c == '\r' || c == '\u2028' || c == '\u2029'; }
 
   /** Optimal string alignment distance (a transposition counts as one edit), case-insensitive. */
   static int distance(String a, String b) {
