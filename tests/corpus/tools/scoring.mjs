@@ -226,7 +226,7 @@ export function scoreCorpus(corpus, results, opts = {}) {
 
   const categories = {};
   for (const [c, b] of [...buckets.entries()].sort()) categories[c] = finish(b);
-  // Strict exact-span metric, reported alongside the default (FORMAT.md "Scoring" 9).
+  // Strict exact-span metric, reported alongside the default (FORMAT.md "Scoring" 8).
   let exactSpan;
   if ((opts.match ?? 'overlap') !== 'exact' && !opts.noExactSpan) {
     const x = scoreCorpus(corpus, results, { ...opts, match: 'exact', noExactSpan: true });
