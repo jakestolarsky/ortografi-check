@@ -146,6 +146,14 @@ class MinimalEditCheckerTest {
   }
 
   @Test
+  void punctuationEditsInsideAWordStayWholeWord() throws Exception {
+    Issue hyphenIn = issue(4, 9, "e-mail");
+    assertEquals(hyphenIn, narrow("Mój email.", hyphenIn).get(0));
+    Issue hyphenOut = issue(4, 10, "email");
+    assertEquals(hyphenOut, narrow("Mój e-mail.", hyphenOut).get(0));
+  }
+
+  @Test
   void differentEditsAcrossReplacementsLeaveTheIssueUnchanged() throws Exception {
     Issue two = issue(13, 16, " i", ", oraz");
     assertEquals(two, narrow("Kupiłem chleb, i mleko.", two).get(0));
