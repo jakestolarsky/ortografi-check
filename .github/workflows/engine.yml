@@ -43,7 +43,12 @@ jobs:
 
       - name: Java version (must be Temurin 21.0.12.1+1)
         run: |
-          java -version 2>&1 | tee /dev/stderr | grep -q 'Temurin-21.0.12.1+1'
+          v=$(java -version 2>&1)
+          echo "$v"
+          case "$v" in
+            *'Temurin-21.0.12.1+1 '*) ;;
+            *) echo "::error::expected Temurin 21.0.12.1+1"; exit 1 ;;
+          esac
 
       - name: Build and test (mvn verify)
         run: mvn -B -ntp verify
