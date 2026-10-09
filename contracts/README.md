@@ -20,8 +20,12 @@ Proposed by Ortografi UI, agreed with Desktop (Rust/IPC) and Engine.
 
 Each issue describes the **smallest edit** on the **original** text, with offsets in UTF-16 code units (`end` exclusive). Applying a fix means replacing `text[start..end]` with the chosen replacement.
 
+- **Empty replacements delete the whole range:** if every replacement on an issue is `""`, applying that issue deletes `text[start..end)`, whatever the category. The usual extra-comma case is a one-character range with `[""]`. Example: `Był szybki, jak wiatr.` becomes `Był szybki jak wiatr.`; corpus p0-0043 marks `10..11`. The following space stays.
 - **Missing comma:** a zero-length insertion, `start == end`, with replacement `","`. Example: corpus p0-0003 `Wiem że to…` has `4..4` with `","`.
-- **Unnecessary comma:** a deletion covering only the comma, `end = start + 1`, with replacement `""`. The following space stays. Example: `Był szybki, jak wiatr.` becomes `Był szybki jak wiatr.`; corpus p0-0043 marks `10..11`.
+
+## Tooling conventions
+
+Corpus runs use check ids of the form `corpus-<exampleId>` (for example `corpus-p0-0003`) so the scorer can match results to examples. This is a test-tooling convention, not required by the protocol; the app may use any id.
 
 ## Layout
 
