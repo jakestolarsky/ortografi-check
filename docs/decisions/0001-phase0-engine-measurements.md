@@ -305,6 +305,31 @@ During development, two variants regressed dev and were rejected:
 - **Also trimming removed spaces:** this broke the spacing/whitespace convention (p0-0044,
   p0-0045, p1-0202).
 
+## Dev re-score after corpus #11 (phase 2, 2026-10-09 22:55 CEST)
+
+Dev split only (`--split dev`; held-out not run). Corpus: main @ `8c5d21b` (#11 merged, which
+changed p2-0023 and p2-0024): `phase0-starter`, `phase1-dev`, `phase2-dev`, 252 examples, 90
+clean. Engine unchanged since the minimal-edit change above. Scoring 1.2 (style/other excluded
+from P/R), main's `score.mjs` on `CorpusRunner` output.
+
+| Mode | TP | FP | FN | Precision | Recall | F1 | Top-1 |
+|---|---|---|---|---|---|---|---|
+| overlap (default) | 117 | 2 | 47 | 98.3% | 71.3% | 82.7% | 73.5% |
+| exact | 97 | 22 | 67 | 81.5% | 59.1% | 68.6% | 85.6% |
+| strict category | 109 | 11 | 55 | 90.8% | 66.5% | 76.8% | 77.1% |
+
+- Per category (overlap): grammar P 93.3% / R 41.2%, punctuation 100% / 82.5%, spelling
+  98.2% / 76.7%.
+- Clean-sentence false positives: **0/90 (0.0%)** (strict category: 1/90, p1-0126).
+- Release-critical failures: none.
+- Versus the phase-1 dev run (P 98.1% / R 76.1% / F1 85.7%, 0/82 clean): recall drops because
+  the corpus grew (phase-2 examples, mostly grammar), not because the engine changed. Exact F1
+  68.6% equals the earlier run on the #11 draft.
+- Scoring the adapter's raw v1 output with corpus/phase3's scorer fails validation on
+  p1-0206: `SKROTY_BEZ_KROPKI` deletes the period in `Mgr.` (3..4, `""`), and that validator
+  requires every empty replacement to delete a comma. contracts/README.md states the rule only
+  for unnecessary commas, so the validator needs to allow other one-character deletions.
+
 ## Open items
 
 - **Memory at 50k: resolved on Linux (phase 1).** See "Memory (phase 1)" below: peak RSS is now
