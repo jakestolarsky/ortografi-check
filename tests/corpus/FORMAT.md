@@ -97,9 +97,10 @@ Example (`p0-0001`, "Kupiłem chleb, i mleko."): `start 13, end 14, original ","
 Spacing errors are a different subcategory: `punctuation.spacing` (" ," → ",") and
 `punctuation.whitespace` ("  " → " ") replace a range that includes the space.
 
-Scoring: under the default `overlap` match, an engine may mark a wider span (for example
-`, i` → ` i`) and still get credit, because fixes are compared by resulting text. Under
-`--match exact` the predicted range must be exactly the comma. The data test checks every
+Scoring (1.3): an engine span wider than the comma (for example `, i` → ` i`) is still a
+detection under the default `overlap` match, but not a fix hit; the fix hit needs the
+engine range within the annotated range (see "Scoring" rule 2). Under `--match exact` the
+predicted range must be exactly the comma. The data test checks every
 `punctuation.extra_comma` issue against this convention.
 
 ## Splits: dev and held-out
@@ -186,12 +187,26 @@ Example fixture: `tests/corpus/tools/fixtures/v1-results.jsonl`.
 1. **Range match.** A predicted issue *can* match an expected one when their ranges
    overlap; with a zero-length range on either side, touching counts
    (`p.start ≤ e.end && e.start ≤ p.end`). `--match exact` requires identical ranges.
-2. **Fix acceptance is text-based.** A replacement is accepted when applying it at the
-   predicted range yields the **same full text** as applying some acceptable fix at the
-   expected range. So `chleb, i` → `chleb i` over a wider range is equivalent to
-   deleting the comma. Engines may mark different spans for the same edit.
+2. **Fix hit (scoring 1.3: minimal engine spans, phrase-level corpus).** Engine issue
+   ranges are minimal (exactly the text the fix replaces); corpus ranges may cover a
+   whole phrase. An engine issue is a **fix hit** for an expected issue only when
+   (a) its range lies **within** the expected range (`p.start ≥ e.start && p.end ≤ e.end`;
+   zero-length insertions inside or at either edge count) **and** (b) applying the
+   engine's fix to the sentence gives exactly the sentence obtained by applying one of the
+   expected fixes to the expected range (both compared after NFC normalisation).
+   Top-1 accuracy uses the engine's first fix; any-suggestion accuracy uses any of its
+   fixes. An engine range that overlaps the expected range but is wider than it, or whose
+   fix gives a different sentence, is still a **detection** (TP under rule 1) but not a
+   fix hit. (Scoring ≤ 1.2 also accepted wider engine ranges, e.g. `Wiem` → `Wiem,`.)
+   **Several edits in one phrase:** when two to four engine issues lie within the same
+   expected range and applying their fixes **together** (first fixes for top-1; any
+   combination for any-suggestion) gives an acceptable sentence, they count as **one**
+   TP and fix hit, and none of them is a false positive (`multi_edit_hits` in the
+   report). If the combination is not acceptable, they are matched one by one as usual
+   (one detection; the rest may be FPs).
 3. **Assignment.** One-to-one greedy assignment by score
-   (exact range > top replacement accepted > any accepted > category agreement > overlap).
+   (exact range > multi-edit group > top replacement accepted > any accepted > category
+   agreement > overlap).
    Category is *not* required for a match; disagreements are counted
    (`category_mismatches`). `--strict-category` requires it.
 4. **Counts.** Matched required issue → TP (counted under the expected category).
@@ -216,6 +231,11 @@ Example fixture: `tests/corpus/tools/fixtures/v1-results.jsonl`.
    top-suggestion accuracy and any-suggestion accuracy. Clean set: number and share of
    clean examples with ≥ 1 false positive (PLAN.md target ≤ 2%, report absolute count).
    Release-critical failures are listed by id.
+
+8. **Strict exact-span metric.** Reported alongside as `exact_span` (and a
+   "strict exact-span metric" line in the text report): the same scoring with
+   `--match exact`, i.e. the engine range must equal the corpus range. It is a
+   diagnostic of span agreement, not the headline score.
 
 Scores describe this corpus only, never Polish in general (PLAN.md §10).
 
@@ -255,6 +275,11 @@ The JSONL file stays the single source of truth; markup is only an input aid.
 * **Result input: protocol v1** (phase 3): `score.mjs` and `validate.mjs --engine` accept
   `contracts/v1` messages (`result`, `error`) next to corpus result lines; see
   "Protocol v1 input". Scoring rules unchanged (still 1.2).
+* **Scoring 1.3** (team decision: minimal engine spans, phrase-level corpus): a fix hit
+  needs the engine range within the expected range and the same resulting sentence
+  (NFC); several minimal edits inside one annotated phrase are scored together as one
+  hit; wider engine spans are detection-only; the strict exact-span metric is reported
+  alongside (`exact_span`). Detection counting (overlap) is unchanged.
 * **Phase 3 data**: 50 dev (`phase3-dev.jsonl`, 39 grammar errors + 11 clean grammar
   controls; p3-0022 became a clean control in review) and 10 held-out (`heldout/phase3-heldout.jsonl`, 7 errors + 3 clean) grammar
   examples, added because grammar recall was the weakest category in Engine's PR #18 dev

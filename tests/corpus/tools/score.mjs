@@ -59,6 +59,11 @@ export function formatReport(r) {
   lines.push(`clean set: ${cs.with_false_positive}/${cs.examples} examples with a false positive (${pct(cs.false_positive_rate).trim()}; error categories ${cs.with_error_category_fp}, style/other only ${cs.with_only_excluded_category})${cs.ids.length ? `: ${cs.ids.join(', ')}` : ''}`);
   if (r.missing.length) lines.push(`missing results (${r.missing.length}): ${r.missing.join(', ')}`);
   if (r.incomplete.length) lines.push(`incomplete/error results (${r.incomplete.length}): ${r.incomplete.join(', ')}`);
+  if (r.exact_span) {
+    const x = r.exact_span.overall;
+    lines.push(`strict exact-span metric (engine range must equal the corpus range): TP ${x.tp} FP ${x.fp} FN ${x.fn}, precision ${pct(x.precision).trim()}, recall ${pct(x.recall).trim()}, F1 ${pct(x.f1).trim()}, top1 ${pct(x.top1_accuracy).trim()}`);
+  }
+  if (r.overall.multi_edit_hits) lines.push(`multi-edit hits (several minimal engine edits fixing one annotated phrase): ${r.overall.multi_edit_hits}`);
   lines.push(`release-critical failures: ${r.release_critical_failures.length ? r.release_critical_failures.map((f) => f.id).join(', ') : 'none'}`);
   lines.push('Scores describe this corpus only, not Polish in general.');
   return lines.join('\n');

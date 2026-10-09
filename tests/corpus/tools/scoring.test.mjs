@@ -15,14 +15,19 @@ test('range matching: overlap, zero-length touch, exact', () => {
   assert.equal(rangesMatch({ start: 2, end: 5 }, { start: 2, end: 6 }, 'exact'), false);
 });
 
-test('fix acceptance compares resulting text, not spans', () => {
+test('fix acceptance (scoring 1.3): engine range within the expected range and same resulting sentence', () => {
   const text = 'Kupiłem chleb, i mleko.';
   const e = iss(13, 14, 'punctuation', ['']);
-  assert.equal(replacementAccepted(text, e, { start: 8, end: 14 }, 'chleb'), true);
   assert.equal(replacementAccepted(text, e, { start: 13, end: 14 }, ''), true);
   assert.equal(replacementAccepted(text, e, { start: 13, end: 14 }, ';'), false);
+  // A wider engine range is no longer a fix hit, even if the resulting text is right.
+  assert.equal(replacementAccepted(text, e, { start: 8, end: 14 }, 'chleb'), false);
   const w = 'Wiem że';
-  assert.equal(replacementAccepted(w, iss(4, 4, 'punctuation', [',']), { start: 0, end: 4 }, 'Wiem,'), true);
+  assert.equal(replacementAccepted(w, iss(4, 4, 'punctuation', [',']), { start: 4, end: 4 }, ','), true);
+  assert.equal(replacementAccepted(w, iss(4, 4, 'punctuation', [',']), { start: 0, end: 4 }, 'Wiem,'), false);
+  // NFC comparison: an NFD fix equals the NFC corpus fix.
+  const z = 'Może to rzaba skacze.';
+  assert.equal(replacementAccepted(z, iss(8, 13, 'spelling', ['żaba']), { start: 8, end: 10 }, 'z\u0307'), true);
 });
 
 test('UTF-16 offsets after emoji are scored exactly', () => {
@@ -177,4 +182,89 @@ test('optional comma: inserting it or not are both fine', () => {
     const r = scoreCorpus(corpus, new Map([res('o', issues)]));
     assert.deepEqual([r.overall.tp, r.overall.fp, r.overall.fn, r.clean_set.with_false_positive], [0, 0, 0, 0]);
   }
+});
+
+// ---- scoring 1.3: minimal engine spans inside phrase-level annotations ----
+const one = (corpus, issues, opts) => scoreCorpus(corpus, new Map([res(corpus[0].id, issues)]), opts);
+
+test('minimal span with the correct fix: detection and top-1 fix hit', () => {
+  const text = 'Nie widziałem tę książkę w bibliotece.';
+  const corpus = [ex('m1', text, [iss(14, 24, 'grammar', ['tej książki'])])];
+  const r = one(corpus, [{ start: 14, end: 16, category: 'grammar', replacements: ['tej'] }, { start: 17, end: 24, category: 'grammar', replacements: ['książki'] }]);
+  // two minimal edits together fix the phrase: one hit, no FP
+  assert.deepEqual([r.overall.tp, r.overall.fp, r.overall.fn, r.overall.top1_ok, r.overall.multi_edit_hits], [1, 0, 0, 1, 1]);
+  const single = 'Szukam klucze od mieszkania.';
+  const r2 = one([ex('m2', single, [iss(7, 13, 'grammar', ['kluczy'])])], [{ start: 11, end: 13, category: 'grammar', replacements: ['zy', 'ze'] }]);
+  assert.deepEqual([r2.overall.tp, r2.overall.fp, r2.overall.top1_ok, r2.overall.any_ok], [1, 0, 1, 1]);
+});
+
+test('minimal span with a wrong fix: detection (TP) but no fix hit', () => {
+  const text = 'Szukam klucze od mieszkania.';
+  const r = one([ex('w1', text, [iss(7, 13, 'grammar', ['kluczy'])])], [{ start: 7, end: 13, category: 'grammar', replacements: ['klucza', 'kluczy'] }]);
+  assert.deepEqual([r.overall.tp, r.overall.fp, r.overall.fn, r.overall.top1_ok, r.overall.any_ok], [1, 0, 0, 0, 1]);
+  const r2 = one([ex('w2', text, [iss(7, 13, 'grammar', ['kluczy'])])], [{ start: 7, end: 9, category: 'grammar', replacements: ['xx'] }]);
+  assert.deepEqual([r2.overall.tp, r2.overall.top1_ok, r2.overall.any_ok], [1, 0, 0]);
+});
+
+test('two-edit phrase (verb + numeral): combined fixes are one hit; a wrong combination is detection only', () => {
+  const text = 'Na spotkanie przyszli dwa osoby.';
+  // expected phrase "przyszli dwa" -> "przyszły dwie"
+  const e = iss(13, 25, 'grammar', ['przyszły dwie']);
+  const corpus = [ex('t1', text, [e])];
+  const good = one(corpus, [{ start: 13, end: 21, category: 'grammar', replacements: ['przyszły'] }, { start: 22, end: 25, category: 'grammar', replacements: ['dwie'] }]);
+  assert.deepEqual([good.overall.tp, good.overall.fp, good.overall.fn, good.overall.top1_ok, good.overall.multi_edit_hits], [1, 0, 0, 1, 1]);
+  // second fix only via a later suggestion: any-hit, not top-1
+  const anyOnly = one(corpus, [{ start: 13, end: 21, category: 'grammar', replacements: ['przyszły'] }, { start: 22, end: 25, category: 'grammar', replacements: ['dwóch', 'dwie'] }]);
+  assert.deepEqual([anyOnly.overall.tp, anyOnly.overall.fp, anyOnly.overall.top1_ok, anyOnly.overall.any_ok], [1, 0, 0, 1]);
+  // only one of the two edits: detection, no fix hit, no FP
+  const half = one(corpus, [{ start: 22, end: 25, category: 'grammar', replacements: ['dwie'] }]);
+  assert.deepEqual([half.overall.tp, half.overall.fp, half.overall.top1_ok], [1, 0, 0]);
+  // two edits whose combination is wrong: one detection, the other is a false positive
+  const bad = one(corpus, [{ start: 13, end: 21, category: 'grammar', replacements: ['przyszedł'] }, { start: 22, end: 25, category: 'grammar', replacements: ['dwóch'] }]);
+  assert.deepEqual([bad.overall.tp, bad.overall.fp, bad.overall.top1_ok], [1, 1, 0]);
+});
+
+test('insertion: zero-length engine issue inside or at the edge of the expected range', () => {
+  const text = 'Wiem że to ważne.';
+  const corpus = [ex('i1', text, [iss(4, 4, 'punctuation', [','])])];
+  const r = one(corpus, [{ start: 4, end: 4, category: 'punctuation', replacements: [','] }]);
+  assert.deepEqual([r.overall.tp, r.overall.top1_ok], [1, 1]);
+  const phrase = [ex('i2', text, [iss(0, 7, 'punctuation', ['Wiem, że'])])];
+  const r2 = one(phrase, [{ start: 4, end: 4, category: 'punctuation', replacements: [','] }]);
+  assert.deepEqual([r2.overall.tp, r2.overall.fp, r2.overall.top1_ok], [1, 0, 1]);
+  // a whole-word span with "Wiem," is a detection but no longer a fix hit
+  const r3 = one(corpus, [{ start: 0, end: 4, category: 'punctuation', replacements: ['Wiem,'] }]);
+  assert.deepEqual([r3.overall.tp, r3.overall.top1_ok], [1, 0]);
+});
+
+test('deletion: comma-only and a longer deleted range', () => {
+  const text = 'Był szybki, jak wiatr.';
+  const r = one([ex('d1', text, [iss(10, 11, 'punctuation', [''])])], [{ start: 10, end: 11, category: 'punctuation', replacements: [''] }]);
+  assert.deepEqual([r.overall.tp, r.overall.top1_ok], [1, 1]);
+  const t2 = 'Mgr. Nowak prowadzi zajęcia.';
+  const r2 = one([ex('d2', t2, [iss(0, 4, 'punctuation', ['Mgr'])])], [{ start: 3, end: 4, category: 'spelling', replacements: [''] }]);
+  assert.deepEqual([r2.overall.tp, r2.overall.top1_ok, r2.overall.category_mismatches], [1, 1, 1]);
+  const t3 = 'To jest bardzo bardzo dobre.';
+  const r3 = one([ex('d3', t3, [iss(8, 21, 'style', ['bardzo'], false), iss(14, 21, 'grammar', [''])])], [{ start: 14, end: 21, category: 'grammar', replacements: [''] }]);
+  assert.deepEqual([r3.overall.tp, r3.overall.fp, r3.overall.top1_ok], [1, 0, 1]);
+});
+
+test('exact-span metric is reported alongside, and unchanged results where spans were already exact', () => {
+  const corpus = [
+    ex('a', 'Wiem że to ważne.', [iss(4, 4, 'punctuation', [','])]),
+    ex('b', 'Mój wójek.', [iss(4, 9, 'spelling', ['wujek'])]),
+    ex('c', 'Szukam klucze od mieszkania.', [iss(7, 13, 'grammar', ['kluczy'])]),
+  ];
+  const results = new Map([
+    res('a', [{ start: 4, end: 4, category: 'punctuation', replacements: [','] }]),
+    res('b', [{ start: 4, end: 9, category: 'spelling', replacements: ['wujek'] }]),
+    res('c', [{ start: 11, end: 13, category: 'grammar', replacements: ['zy'] }]),
+  ]);
+  const r = scoreCorpus(corpus, results);
+  assert.equal(r.scoring_version, '1.3');
+  assert.deepEqual([r.overall.tp, r.overall.fp, r.overall.fn, r.overall.top1_ok], [3, 0, 0, 3]);
+  // exact-span: the minimal grammar span is a miss + FP; the exact ones are identical
+  assert.deepEqual([r.exact_span.overall.tp, r.exact_span.overall.fp, r.exact_span.overall.fn], [2, 1, 1]);
+  for (const c of ['punctuation', 'spelling']) assert.deepEqual(r.exact_span.categories[c], r.categories[c]);
+  assert.equal(scoreCorpus(corpus, results, { match: 'exact' }).exact_span, undefined);
 });
