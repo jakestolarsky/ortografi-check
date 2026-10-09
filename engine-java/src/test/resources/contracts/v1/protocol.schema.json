@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ortografi-check.local/contracts/v1/protocol.schema.json",
-  "title": "ortografi engine protocol v1 (DRAFT, pending agreement UI/Desktop/Engine)",
-  "description": "JSON lines over stdin/stdout between Rust and engine-java; the same CheckRequest/CheckResponse shapes cross Tauri IPC to the UI. Ranges are UTF-16 code units, end exclusive. Matches engine-java Adapter protocol 1.",
+  "title": "ortografi engine protocol v1",
+  "description": "JSON lines over stdin/stdout between Rust and engine-java (protocol 1). Rust forwards these messages unchanged over Tauri IPC to the UI. Ranges are UTF-16 code units, end exclusive; start == end is an insertion point. Unknown fields are rejected.",
   "oneOf": [
     {
       "$ref": "#/$defs/Ready"
@@ -14,7 +14,7 @@
       "$ref": "#/$defs/CheckResult"
     },
     {
-      "$ref": "#/$defs/Error"
+      "$ref": "#/$defs/ErrorMessage"
     },
     {
       "$ref": "#/$defs/Shutdown"
@@ -145,7 +145,7 @@
         },
         "message": {
           "type": "string",
-          "description": "Plain text. UI never renders it as HTML."
+          "description": "Plain text (adapter strips LanguageTool markup such as <suggestion>). UI never renders it as HTML."
         },
         "replacements": {
           "type": "array",
@@ -204,7 +204,7 @@
         }
       }
     },
-    "Error": {
+    "ErrorMessage": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -237,7 +237,7 @@
             "TIMEOUT",
             "ENGINE_UNAVAILABLE"
           ],
-          "description": "TIMEOUT and ENGINE_UNAVAILABLE are produced by Rust (supervisor), not by the Java adapter."
+          "description": "Adapter codes: MALFORMED_REQUEST, UNSUPPORTED_PROTOCOL, UNKNOWN_TYPE, TEXT_TOO_LONG, ENGINE_ERROR. Rust-only (supervisor, never emitted by engine-java): TIMEOUT, ENGINE_UNAVAILABLE."
         },
         "detail": {
           "type": "string",

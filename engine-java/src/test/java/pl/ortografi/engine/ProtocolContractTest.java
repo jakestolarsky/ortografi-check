@@ -12,7 +12,6 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -23,8 +22,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Adapter output against the draft protocol contract (copied into test resources until Desktop
- * commits contracts/), with the real engine and texts from the corpus.
+ * Adapter output against Desktop's contracts/v1 (copied from PR #8 into test resources until it
+ * merges), with the real engine, the shared examples and the corpus-built fixtures.
  */
 class ProtocolContractTest {
 
@@ -43,14 +42,6 @@ class ProtocolContractTest {
   private static void assertValid(JsonNode msg) {
     Set<ValidationMessage> errors = schema.validate(msg);
     assertTrue(errors.isEmpty(), msg + " -> " + errors);
-  }
-
-  private static String corpusText(String id) throws Exception {
-    for (String line : Files.readAllLines(Path.of("../tests/corpus/data/phase0-starter.jsonl"), StandardCharsets.UTF_8)) {
-      JsonNode e = JSON.readTree(line);
-      if (e.get("id").asText().equals(id)) return e.get("text").asText();
-    }
-    throw new AssertionError("no corpus example " + id);
   }
 
   private static List<JsonNode> run(Checker checker, int limit, String... lines) throws Exception {
@@ -80,33 +71,77 @@ class ProtocolContractTest {
     }
   }
 
-  @Test
-  void missingCommaIsAZeroLengthInsertionWithPlainMessage() throws Exception {
-    String text = corpusText("p0-0003"); // "Wiem że to nie będzie łatwe."
-    List<JsonNode> msgs = run(engine, 100_000, check("c1", text));
+  private static JsonNode example(String name) throws Exception {
+    try (InputStream in = ProtocolContractTest.class.getResourceAsStream("/contracts/v1/examples/" + name + ".json")) {
+      assertNotNull(in, name);
+      return JSON.readTree(in);
+    }
+  }
+
+  /**
+   * The corpus fixtures' ranges and fixes are authoritative; their ruleIds and messages are
+   * representative only (contracts/README.md), so those are not compared.
+   */
+  private static JsonNode assertMatchesCorpusFixture(String id) throws Exception {
+    JsonNode req = example("corpus-" + id + "-check");
+    JsonNode expected = example("corpus-" + id + "-result");
+    List<JsonNode> msgs = run(engine, 100_000, JSON.writeValueAsString(req));
     msgs.forEach(ProtocolContractTest::assertValid);
-    JsonNode i = issueAt(msgs.get(1), 4, 4);
-    assertEquals(List.of(","), JSON.convertValue(i.get("replacements"), List.class));
-    String message = i.get("message").asText();
-    assertFalse(message.contains("<"), message);
-    assertTrue(message.contains("„Wiem, że”"), message);
+    JsonNode res = msgs.get(1);
+    assertEquals("result", res.get("type").asText(), res.toString());
+    assertEquals(req.get("id"), res.get("id"));
+    assertEquals(req.get("docVersion"), res.get("docVersion"));
+    assertEquals(req.get("settingsVersion"), res.get("settingsVersion"));
+    assertEquals(expected.get("issues").size(), res.get("issues").size(), res.toString());
+    for (JsonNode want : expected.get("issues")) {
+      JsonNode got = issueAt(res, want.get("start").asInt(), want.get("end").asInt());
+      assertEquals(want.get("category"), got.get("category"), got.toString());
+      List<?> reps = JSON.convertValue(got.get("replacements"), List.class);
+      for (JsonNode r : want.get("replacements")) assertTrue(reps.contains(r.asText()), r + " not in " + reps);
+      assertFalse(got.get("message").asText().contains("<suggestion>"), got.toString());
+    }
+    return res;
   }
 
   @Test
-  void replacementRangesAreUnchanged() throws Exception {
-    String p59 = corpusText("p0-0059"); // emoji before the range
-    JsonNode r59 = run(engine, 100_000, check("c2", p59)).get(1);
-    assertValid(r59);
-    JsonNode i59 = issueAt(r59, 29, 37);
-    assertEquals("dziekuje", p59.substring(29, 37));
-    assertTrue(JSON.convertValue(i59.get("replacements"), List.class).contains("dziękuję"), i59.toString());
+  void p0_0003_missingCommaIsAZeroLengthInsertionWithPlainMessage() throws Exception {
+    JsonNode i = assertMatchesCorpusFixture("p0-0003").get("issues").get(0);
+    assertEquals(List.of(","), JSON.convertValue(i.get("replacements"), List.class));
+    assertTrue(i.get("message").asText().contains("„Wiem, że”"), i.toString());
+  }
 
-    String p63 = corpusText("p0-0063"); // NFD original: offsets count the combining marks
-    assertNotEquals(java.text.Normalizer.normalize(p63, java.text.Normalizer.Form.NFC), p63);
-    JsonNode r63 = run(engine, 100_000, check("c3", p63)).get(1);
-    assertValid(r63);
-    JsonNode i63 = issueAt(r63, 9, 14);
-    assertEquals("żaba", i63.get("replacements").get(0).asText());
+  @Test
+  void p0_0059_rangeAfterEmojiIsUnchanged() throws Exception {
+    assertMatchesCorpusFixture("p0-0059");
+  }
+
+  @Test
+  void p0_0063_rangeOnTheNfdOriginal() throws Exception {
+    String text = example("corpus-p0-0063-check").get("text").asText();
+    assertNotEquals(java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFC), text, "fixture text is NFD");
+    JsonNode i = assertMatchesCorpusFixture("p0-0063").get("issues").get(0);
+    assertEquals("żaba", i.get("replacements").get(0).asText());
+  }
+
+  @Test
+  void p0_0061_zwjFamilyEmojiHasNoIssues() throws Exception {
+    assertMatchesCorpusFixture("p0-0061");
+  }
+
+  @Test
+  void checksWithMissingOrNonNumericVersionsAreMalformedWithoutVersions() throws Exception {
+    List<JsonNode> msgs = run(engine, 100_000,
+        "{\"protocol\":1,\"type\":\"check\",\"id\":\"m1\",\"settingsVersion\":1,\"text\":\"a\"}",
+        "{\"protocol\":1,\"type\":\"check\",\"id\":\"m2\",\"docVersion\":\"7\",\"settingsVersion\":1,\"text\":\"a\"}",
+        "{\"protocol\":1,\"type\":\"check\",\"id\":\"m3\",\"docVersion\":1,\"settingsVersion\":null,\"text\":\"a\"}",
+        "{\"protocol\":1,\"type\":\"check\",\"id\":\"m4\",\"docVersion\":1.5,\"settingsVersion\":1,\"text\":\"a\"}",
+        "{\"protocol\":1,\"type\":\"check\",\"id\":\"m5\",\"docVersion\":1,\"settingsVersion\":{\"v\":1},\"text\":\"a\"}");
+    assertEquals(6, msgs.size(), msgs.toString());
+    for (JsonNode e : msgs.subList(1, 6)) {
+      assertValid(e);
+      assertEquals("MALFORMED_REQUEST", e.get("code").asText(), e.toString());
+      assertFalse(e.has("docVersion") || e.has("settingsVersion"), e.toString());
+    }
   }
 
   @Test

@@ -1,3 +1,3 @@
-Temporary copy of the DRAFT protocol contract from Ortografi Desktop's `contracts/` (taken from
-the working draft on 2026-10-09; not yet committed upstream). Replace with the committed
-`contracts/` once Desktop lands it. Do not edit here; propose changes to `contracts/` instead.
+Copy of `contracts/v1/` from Ortografi Desktop's PR #8 (branch `desktop/contracts-v1`, commit
+e67e182), not yet on main. Replace with the committed `contracts/` once PR #8 merges (then the
+test can read `../contracts/v1` directly). Do not edit here; propose changes in `contracts/`.
