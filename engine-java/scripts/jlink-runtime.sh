@@ -37,6 +37,7 @@ rm -rf "$OUT"
 jlink --add-modules "$MODULES" --include-locales=en,pl --add-options="$OPTIONS" \
   --strip-debug --no-man-pages --no-header-files --compress=zip-6 --output "$OUT"
 FLAGS=$("$OUT/bin/java" -XX:+PrintFlagsFinal -version 2>/dev/null | tr -d '\r')
-echo "$FLAGS" | grep -Eq 'MaxHeapSize += 134217728 ' || { echo "runtime does not apply -Xmx128m"; exit 1; }
-echo "$FLAGS" | grep -Eq 'UseSerialGC += true ' || { echo "runtime does not apply SerialGC"; exit 1; }
+# Bash matching, not `echo | grep -q`: with pipefail, grep -q's early exit fails the pipe.
+[[ "$FLAGS" =~ MaxHeapSize[[:space:]]+=[[:space:]]+134217728[[:space:]] ]] || { echo "runtime does not apply -Xmx128m"; exit 1; }
+[[ "$FLAGS" =~ UseSerialGC[[:space:]]+=[[:space:]]+true[[:space:]] ]] || { echo "runtime does not apply SerialGC"; exit 1; }
 echo "runtime: $OUT ($MODULES) options: $OPTIONS"
