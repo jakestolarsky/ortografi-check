@@ -23,6 +23,7 @@ public final class LanguageToolChecker implements Checker {
     Language polish = Languages.getLanguageForShortCode(LANGUAGE);
     this.lt = new JLanguageTool(polish);
     lt.addRule(new SubjectVerbCommaRule(JLanguageTool.getMessageBundle(polish)));
+    for (org.languagetool.rules.patterns.AbstractPatternRule r : ownRules(polish, NUMERAL_RULES)) lt.addRule(r);
     this.names = new PossessiveFromName.Lexicon() {
       @Override
       public boolean isPersonalName(String name, String gender) {
@@ -34,6 +35,18 @@ public final class LanguageToolChecker implements Checker {
         return readings(polish, form).stream().anyMatch(r -> lemma.equals(r.getLemma()));
       }
     };
+  }
+
+  /** Our own rules in LanguageTool's XML format (category GRAMMAR); see NumeralRulesTest. */
+  static final String NUMERAL_RULES = "/pl/ortografi/engine/rules/numerals.xml";
+
+  static List<org.languagetool.rules.patterns.AbstractPatternRule> ownRules(Language polish, String resource) {
+    try (java.io.InputStream in = LanguageToolChecker.class.getResourceAsStream(resource)) {
+      if (in == null) throw new IllegalStateException("missing " + resource);
+      return new org.languagetool.rules.patterns.PatternRuleLoader().getRules(in, resource, polish);
+    } catch (IOException e) {
+      throw new java.io.UncheckedIOException(e);
+    }
   }
 
   private static List<AnalyzedToken> readings(Language polish, String word) {
