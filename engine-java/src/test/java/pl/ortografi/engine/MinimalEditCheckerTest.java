@@ -162,19 +162,78 @@ class MinimalEditCheckerTest {
     assertEquals(List.of(" "), out.replacements());
   }
 
+  private static void assertEdit(Issue out, int start, int end, String... reps) {
+    assertEquals(start, out.start(), out::toString);
+    assertEquals(end, out.end(), out::toString);
+    assertEquals(List.of(reps), out.replacements());
+  }
+
   @Test
-  void whitespaceRemovalsKeepTheRangeIncludingTheSpace() throws Exception {
-    // FORMAT.md: punctuation.spacing / punctuation.whitespace replace a range that includes the
-    // space (dev p0-0044, p0-0045, p1-0202).
-    Issue doubleSpace = issue(3, 5, " ");
-    assertEquals(doubleSpace, narrow("Mam  dwa koty.", doubleSpace).get(0));
-    Issue spaceBeforeComma = issue(15, 17, ",");
-    assertEquals(spaceBeforeComma, narrow("Przyszedł późno , więc.", spaceBeforeComma).get(0));
+  void missingSpaceBetweenNumberAndUnitIsAZeroLengthInsertion() throws Exception {
+    // JEDNOSTKA_LICZBA shapes from dev p0-0046 and p1-0204, plus self-written sentences.
+    assertEdit(narrow("Umowę podpisano w 2025r.", issue(18, 24, "2025 r.")).get(0), 22, 22, " ");
+    assertEdit(narrow("To kosztuje 50zł.", issue(12, 16, "50 zł")).get(0), 14, 14, " ");
+    assertEdit(narrow("Waży 12kg i ma 3m.", issue(5, 9, "12 kg")).get(0), 7, 7, " ");
+    assertEdit(narrow("Od 1999r. do dziś.", issue(3, 9, "1999 r.")).get(0), 7, 7, " ");
+  }
+
+  @Test
+  void extraSpaceIsADeletionOfOnlyTheSpace() throws Exception {
+    assertEdit(narrow("Mam  dwa koty.", issue(3, 5, " ")).get(0), 4, 5, "");
+    assertEdit(narrow("Dziękuję  bardzo.", issue(8, 10, " ")).get(0), 9, 10, "");
+    assertEdit(narrow("Przyszedł późno , więc.", issue(15, 17, ",")).get(0), 15, 16, "");
+    assertEdit(narrow("Wzrost o 3 % w maju.", issue(10, 12, "%")).get(0), 10, 11, "");
+  }
+
+  @Test
+  void whitespaceEditsWorkOnDecomposedTextAndAfterEmoji() throws Exception {
+    String text = "😀 Może kosztuje 50zł.";
+    String nfd = "😀 Moz\u0307e kosztuje 50zł.";
+    assertEdit(narrow(text, issue(17, 21, "50 zł")).get(0), 19, 19, " ");
+    assertEquals("50zł", nfd.substring(18, 22));
+    assertEdit(narrow(nfd, issue(18, 22, "50 zł")).get(0), 20, 20, " ");
+    String twoSpaces = "Moz\u0307e  to.";
+    assertEdit(narrow(twoSpaces, issue(5, 7, " ")).get(0), 6, 7, "");
+  }
+
+  @Test
+  void whitespaceInsideWordsAndAfterALetterBeforeADigitStaysWholeRange() throws Exception {
+    Issue wogole = issue(0, 6, "w ogóle");
+    assertEquals(wogole, narrow("wogóle nie.", wogole).get(0));
+    Issue z4 = issue(0, 2, "z 4");
+    assertEquals(z4, narrow("z4 x", z4).get(0));
+  }
+
+  @Test
+  void duplicatesAfterTrimmingAreRemoved() throws Exception {
+    assertEdit(narrow("Mam  dwa koty.", issue(3, 5, " ", " ")).get(0), 4, 5, "");
+    assertEdit(narrow("To 50zł.", issue(3, 7, "50 zł", "50 zł")).get(0), 5, 5, " ");
+  }
+
+  @Test
+  void issueWithBothWhitespaceAndOtherSuggestionsKeepsOneRangeForAll() throws Exception {
+    // One issue has one range: a non-whitespace suggestion cannot be expressed on the trimmed
+    // range, so the issue keeps the engine span with every suggestion in full.
+    Issue mixed = issue(12, 16, "50 zł", "50 zł.");
+    assertEquals(mixed, narrow("To kosztuje 50zł.", mixed).get(0));
+    Issue words = issue(3, 5, " ", " i ");
+    assertEquals(words, narrow("Mam  dwa koty.", words).get(0));
   }
 
   @Test
   void differentEditsAcrossReplacementsLeaveTheIssueUnchanged() throws Exception {
     Issue two = issue(13, 16, " i", ", oraz");
     assertEquals(two, narrow("Kupiłem chleb, i mleko.", two).get(0));
+  }
+
+  @Test
+  void spacesBetweenTwoLettersStayWholeWordEvenAsTheOnlySuggestion() throws Exception {
+    // Typographic scope only: splitting or joining words is a spelling fix, not spacing.
+    Issue split = issue(0, 8, "Nie lubię");
+    assertEquals(split, narrow("Nielubię szpinaku.", split).get(0));
+    Issue join = issue(0, 12, "Naprzeciwko");
+    assertEquals(join, narrow("Na przeciwko domu.", join).get(0));
+    Issue joinLower = issue(5, 17, "naprzeciwko");
+    assertEquals(joinLower, narrow("Stał na przeciwko domu.", joinLower).get(0));
   }
 }
