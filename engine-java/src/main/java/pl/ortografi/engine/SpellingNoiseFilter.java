@@ -18,7 +18,6 @@ final class SpellingNoiseFilter {
   private static final Pattern NON_LATIN_LETTER = Pattern.compile("[\\p{IsCyrillic}\\p{IsGreek}]");
   private static final Pattern ROMAN_PREFIX = Pattern.compile("^[IVXLCDM]+-\\p{L}+");
   private static final Pattern COMBINING = Pattern.compile("\\p{M}");
-  private static final Pattern SPACES = Pattern.compile("[ \\u00a0]+");
   private static final String POLISH_LETTERS = "aąbcćdeęfghijklłmnńoóprsśtuwyzźżqvx";
 
   private SpellingNoiseFilter() {}
@@ -28,6 +27,56 @@ final class SpellingNoiseFilter {
     boolean known(String word);
 
     List<String> suggest(String word);
+
+    /** True once this request's lookup budget is spent; callers then keep the alert (main's behaviour). */
+    default boolean exhausted() { return false; }
+  }
+
+  /**
+   * Per-request limit on speller lookups for the name and all-caps checks, so a text full of unknown
+   * names (1,000 distinct ones) stays well inside Desktop's timeout of 3 s + 60 µs per UTF-16 unit.
+   * Deadline and lookup count both scale with text length. Once either is spent, the remaining
+   * words fall back to main's behaviour: the alert is kept, nothing more is hidden.
+   */
+  record Budget(java.util.function.LongSupplier clock, long deadlineNanos, int maxLookups) {
+    static final long BASE_NANOS = 100_000_000L, NANOS_PER_UNIT = 5_000L;
+    static final int BASE_LOOKUPS = 500, UNITS_PER_LOOKUP = 10;
+
+    static Budget forText(int utf16Length, java.util.function.LongSupplier clock) {
+      return new Budget(clock, BASE_NANOS + NANOS_PER_UNIT * utf16Length, BASE_LOOKUPS + utf16Length / UNITS_PER_LOOKUP);
+    }
+
+    static Budget unlimited() { return new Budget(() -> 0L, Long.MAX_VALUE, Integer.MAX_VALUE); }
+  }
+
+  /**
+   * Remembers the speller's answers for one request. A name repeated through a document, and the
+   * transposition and case variants the filters try, are looked up once. Answers are the same as
+   * the wrapped speller's; the cache is dropped with the request, so memory is bounded by its text.
+   */
+  static Speller perRequestCache(Speller speller) { return perRequestCache(speller, Budget.unlimited()); }
+
+  static Speller perRequestCache(Speller speller, Budget budget) {
+    java.util.Map<String, Boolean> known = new java.util.HashMap<>();
+    java.util.Map<String, List<String>> suggestions = new java.util.HashMap<>();
+    long start = budget.clock().getAsLong();
+    int[] lookups = {0};
+    return new Speller() {
+      @Override
+      public boolean known(String word) {
+        return known.computeIfAbsent(word, w -> { lookups[0]++; return speller.known(w); });
+      }
+
+      @Override
+      public List<String> suggest(String word) {
+        return suggestions.computeIfAbsent(word, w -> { lookups[0]++; return List.copyOf(speller.suggest(w)); });
+      }
+
+      @Override
+      public boolean exhausted() {
+        return lookups[0] >= budget.maxLookups() || budget.clock().getAsLong() - start >= budget.deadlineNanos();
+      }
+    };
   }
 
   /** Below this many letters an all-caps word is always read as an acronym (PKP, NATO). */
@@ -57,9 +106,10 @@ final class SpellingNoiseFilter {
     // The first word of a sentence is never part of a foreign phrase: a typo there next to another
     // unknown word ("Pszyjehałem wczorj") would otherwise hide both.
     for (int[] o : initial ? List.<int[]>of() : otherFlagged) {
-      if (sentenceStart(text, o[0])) continue;
       int from = Math.min(end, o[1]), to = Math.max(start, o[0]);
-      if ((o[0] >= end || o[1] <= start) && from <= to && SPACES.matcher(text.substring(from, to)).matches()) {
+      // Only the neighbouring match matters; test the gap in place (no copy of the text between).
+      if ((o[0] >= end || o[1] <= start) && onlySpaces(text, from, to)) {
+        if (sentenceStart(text, o[0])) continue;
         // Latin binomial: a capitalised unknown genus right before an unknown lowercase epithet.
         boolean binomial = o[1] <= start && Character.isUpperCase(text.codePointAt(o[0]))
             && !sentenceStart(text, o[0]) && Character.isLowerCase(w.codePointAt(0));
@@ -86,9 +136,11 @@ final class SpellingNoiseFilter {
    */
   static boolean nearKnownWord(String w, List<String> suggestions, Speller speller) {
     if (suggestions.stream().anyMatch(s -> capitalised(s) && distance(s, w) <= 2)) return true;
+    // {@code suggestions} are already the speller's suggestions for w (LanguageTool's match), so
+    // asking the speller for them again would only repeat the most expensive lookup.
+    if (speller.exhausted()) return true;
     String lower = w.toLowerCase(java.util.Locale.ROOT);
     if (speller.known(lower)) return true;
-    if (speller.suggest(w).stream().anyMatch(s -> capitalised(s) && distance(s, w) <= 2)) return true;
     return transposedKnown(w, speller) || transposedKnown(lower, speller);
   }
 
@@ -98,6 +150,7 @@ final class SpellingNoiseFilter {
    */
   static boolean allCapsTypo(String w, long letters, Speller speller) {
     if (letters <= ACRONYM_MAX_LETTERS) return false;
+    if (speller.exhausted()) return true;
     String lower = w.toLowerCase(java.util.Locale.ROOT);
     String title = lower.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + lower.substring(1);
     if (speller.known(lower) || speller.known(title)) return false; // a known word written in caps
@@ -105,6 +158,16 @@ final class SpellingNoiseFilter {
       if (speller.suggest(form).stream().anyMatch(s -> distance(s, form) <= 2)) return true;
     }
     return transposedKnown(lower, speller) || transposedKnown(title, speller);
+  }
+
+  /** Whether text[from, to) is one or more spaces or no-break spaces, nothing else. */
+  private static boolean onlySpaces(String text, int from, int to) {
+    if (from >= to) return false;
+    for (int i = from; i < to; i++) {
+      char c = text.charAt(i);
+      if (c != ' ' && c != '\u00a0') return false;
+    }
+    return true;
   }
 
   private static boolean capitalised(String s) { return !s.isEmpty() && Character.isUpperCase(s.codePointAt(0)); }
