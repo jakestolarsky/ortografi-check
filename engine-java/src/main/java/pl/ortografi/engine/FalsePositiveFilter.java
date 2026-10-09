@@ -23,7 +23,16 @@ final class FalsePositiveFilter {
 
   private FalsePositiveFilter() {}
 
+  /**
+   * BOWIEM_ZAS (a style rule in language-pl 6.8, category SYNTAX) flags "bowiem", "zaś", "ale"
+   * and "lecz" at the start of a sentence. "Bowiem" and "zaś" cannot open a sentence, but a
+   * sentence-initial "Ale" or "Lecz" is standard Polish (52 of its 54 alerts on 4,237 correct
+   * sentences, 0 dev hits). Only those two words are suppressed.
+   */
+  private static final Pattern ALE_LECZ = Pattern.compile("(?i)ale|lecz");
+
   static boolean suppresses(String ruleId, String coveredText) {
+    if ("BOWIEM_ZAS".equals(ruleId)) return coveredText != null && ALE_LECZ.matcher(coveredText).matches();
     return "IMIONA_Z_APOSTROFAMI".equals(ruleId)
         && coveredText != null
         && SILENT_E_NAME_APOSTROPHE_IEM.matcher(coveredText).matches();

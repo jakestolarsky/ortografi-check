@@ -379,3 +379,114 @@ python3 benchmarks/bench.py --50k benchmarks/results/phase0-linux-x64.json 15 30
 (cd engine-java && scripts/jlink-runtime.sh --check && scripts/jlink-runtime.sh target/runtime \
   && python3 scripts/smoke_test.py --java target/runtime/bin/java --compare-java "$JAVA_HOME/bin/java")
 ```
+
+## Spelling false alarms on clean prose (engine/spelling-fp)
+
+Clean-prose set: Corpus PR #26, branch `corpus/clean-prose` @ 51b0b30 (4,237 correct sentences,
+Polish Wikipedia + modernised Wolne Lektury), `tests/corpus/tools/fp-rate.mjs`. Dev: `score.mjs
+--split dev` on main f632b97 (includes corpus PR #20). Heldout and the sealed sets were not used.
+
+**What the 782 MORFOLOGIK_RULE_PL_PL false alarms on main are** (shape heuristics, approximate):
+capitalised word mid-sentence 373 (place/person names, inflected names, Latin genera), lowercase
+words 183 (Latin/foreign words, archaic forms, real dictionary gaps such as `kryptomonady`),
+Latin binomials 71, words inside quotes 44, all-caps/abbreviations 32 (incl. `°C`), hyphenated
+compounds 27 (`XIV-wieczny`, `Neuilly-sur-Seine`, suffix fragments `-a`), lowercase foreign-looking 25,
+capitalised at sentence start 25, digits/mixed script 5. Wikipedia gives 641 of them, Wolne Lektury 134.
+
+**Filters** (`SpellingNoiseFilter`, shape and context only, no word list; a word is always kept when
+the speller suggests a word at edit distance 1, transpositions included, so typos in names such as
+`Gdańksu` → `Gdańsku` still show):
+
+| filter | suppressed on clean prose |
+|---|---:|
+| name: capitalised mid-sentence, no capitalised suggestion at distance 1 | 132 |
+| foreign phrase / Latin binomial: two adjacent unknown words | 69 |
+| foreign letters (é, ü, å, ø…; q/v/x still count as Polish) | 36 |
+| all caps, 2+ letters | 23 |
+| hyphenated name or Roman-numeral compound (`XIV-wieczny`) | 13 |
+| digits, `°`, or Latin mixed with Cyrillic/Greek | 14 |
+
+`BOWIEM_ZAS` (an LT style rule, mapped to grammar): sentence-initial `Ale`/`Lecz` (52 of 54 alerts)
+is standard Polish and is now suppressed in `FalsePositiveFilter`; `Bowiem`/`Zaś` still report.
+
+| | main | engine/spelling-fp |
+|---|---:|---:|
+| clean-prose false alarms | 1,192 (281.3 / 1,000) | 855 (201.8 / 1,000) |
+| MORFOLOGIK_RULE_PL_PL | 782 | 497 |
+| BOWIEM_ZAS | 54 | 2 |
+| dev spelling P / R / top | 98.2% / 76.7% / 83.9% | unchanged |
+| dev grammar / punctuation recall | 35.6% / 82.5% | unchanged |
+| dev correct sentences flagged | 0/101 | 0/101 |
+
+**ZDANIA_ZLOZONE** (82 clean-prose alerts at this snapshot) is kept: disabling it removes 82 alarms
+but costs 10 dev punctuation hits (punctuation recall 82.5% → 64.9%, overall 63.5% → 58.6%).
+
+Left: 208 capitalised words with a close capitalised suggestion (mostly inflected Polish place names
+missing from the dictionary), 171 lowercase unknown words, 37 words in quotes. No shape signal tells
+these from real typos; they need dictionary additions (reported upstream) or a lower-severity
+"unknown name" presentation.
+
+### Sentence-initial words (review follow-up)
+
+A capital at the start of a sentence is not a name signal, so no shape filter may hide the first
+word of a sentence: `SpellingNoiseFilter.sentenceStart` treats as a sentence start the start of the
+text, a line break, or `. ! ? … :` followed by whitespace, with any run of opening quotes, brackets,
+dashes or bullets (`„ " “ « » ( [ — – - •`) before the word. A quote or dash after an ordinary
+word does not start a sentence. On such a word the name filter does not apply, the foreign-phrase
+filter does not pair it with its neighbour (so `Pszyjehałem wczorj` keeps both), and a hyphenated
+word counts as a name only when the part after the hyphen is capitalised too (`Biało-czerowny`
+is kept, `Neuville-Vitasse` is not). The digit, mixed-script and foreign-letter filters cannot fire
+on a word made only of Polish letters. All caps (2+ letters) is still treated as an acronym
+anywhere, including at sentence start. Real-engine tests cover `Wczorja poszłam do sklepu.` at the
+start of the text, after a period, after a line break, inside `„…”` and after a dialogue dash.
+
+Opening quotes and brackets no longer count as a sentence start on their own, so a capitalised
+unknown word right after a mid-sentence `„` or `(` is now treated as a name (22 more suppressed:
+`(Ciconiidae`, `„Breslau`). `np. Elysia chlorotica` now shows one more alarm, because the period
+of `np.` counts as a sentence end.
+
+| | 6d23aa7 | sentence-start fix |
+|---|---:|---:|
+| clean-prose false alarms | 855 (201.8 / 1,000) | 833 (196.6 / 1,000) |
+| MORFOLOGIK_RULE_PL_PL | 497 | 475 |
+| dev spelling P / R / top | 98.2% / 76.7% / 83.9% | unchanged |
+| dev punctuation / grammar recall | 82.5% / 35.6% | unchanged |
+| dev correct sentences flagged | 0/101 | 0/101 |
+
+**Held-out milestone run** (once, after the fix above; `--split heldout`, 120 examples, 43 clean,
+scoring 1.2). No rule was changed because of it.
+
+| held-out | P | R | top1 |
+|---|---:|---:|---:|
+| spelling | 100.0% | 90.6% (29/32) | 82.8% |
+| punctuation | 100.0% | 80.0% (20/25) | 90.0% |
+| grammar | 100.0% | 42.9% (9/21) | 11.1% |
+| overall | 100.0% | 74.4% (58/78) | 74.1% |
+
+Held-out clean sentences flagged: 0/43.
+
+### Keeping typos in names and all-caps words (sealed-set follow-up)
+
+Corpus's sealed set showed `d4c5e3a` hid typos in Polish place names mid-sentence and in all-caps
+words (12/17 caught vs 17/17 on main; we have not seen the set). Losing real typos costs more than
+extra alarms, so both filters now ask the speller (`MorfologikSpellerRule.isMisspelled` /
+`getSpellingSuggestions`) before hiding a word. Tests use new sentences of our own.
+
+- **Name** (capitalised mid-sentence) is hidden only if none of these holds: a capitalised
+  suggestion within 2 edits (Damerau, a transposition is one edit); the lowercased word is known;
+  one adjacent transposition gives a known word (`Krakwoa` → `Krakowa`, `Spootu` → `Sopotu`).
+- **All caps** is an acronym when it has at most 4 letters (`PKP`, `NATO`), when its lowercase or
+  titlecase form is known, or when neither form has a suggestion within 2 edits or a known
+  transposition (`UNESCO`, `QWZXKR`). Otherwise it is a typo in capitals and is reported
+  (`WARSZAWIEE`, `PSZYJEHAŁEM`).
+
+| | d4c5e3a | this change |
+|---|---:|---:|
+| clean-prose false alarms | 833 (196.6 / 1,000) | 849 (200.4 / 1,000) |
+| MORFOLOGIK_RULE_PL_PL | 475 | 491 (+12 names such as `Mincla`, `Wereszczakównej`; +4 all caps: `ENIAC`, `EEPROM`, `ODIHR`, `CORINE`) |
+| ZDANIA_ZLOZONE | 82 | 82 |
+| dev spelling P / R / top | 98.2% / 76.7% / 83.9% | unchanged |
+| dev punctuation / grammar recall | 82.5% / 35.6% | unchanged |
+| dev correct sentences flagged | 0/101 | 0/101 |
+
+Held-out was not run again.
