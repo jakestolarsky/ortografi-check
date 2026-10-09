@@ -70,3 +70,18 @@ describe('issue.applyFix command', () => {
     n = 0; forEachDiagnostic(view.state, () => n++); expect(n).toBe(0);
   });
 });
+
+describe('popup suggestion cap', () => {
+  it('shows at most 5 suggestions in engine order; applyFix by index uses the shown ones', async () => {
+    const { session, registry, view } = await setup('Ala ma kotaa.');
+    const reps = ['k1', 'k2', 'k3', 'k4', 'k5', 'k6', 'k7'];
+    const issue = { ...session.state.issues[0], replacements: reps };
+    const { issueDiagnostics, MAX_POPUP_SUGGESTIONS } = await import('./prose-editor');
+    expect(MAX_POPUP_SUGGESTIONS).toBe(5);
+    const [d] = issueDiagnostics([issue], session, registry);
+    expect(d.actions!.map((a) => a.name)).toEqual(['k1', 'k2', 'k3', 'k4', 'k5']);
+    const execute = vi.spyOn(registry, 'execute');
+    d.actions![4].apply(view, d.from, d.to);
+    expect(execute).toHaveBeenCalledWith(APPLY_FIX, expect.objectContaining({ issueIndex: 0, fixIndex: 4 }));
+  });
+});
