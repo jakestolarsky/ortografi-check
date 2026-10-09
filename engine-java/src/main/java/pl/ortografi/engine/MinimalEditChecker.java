@@ -14,7 +14,7 @@ import java.util.List;
  * inserted consist of punctuation characters ({@code \p{P}}), and every replacement trims to the
  * same range. Letter, digit and space edits ("Poszłem" → "Poszedłem", "wogóle" → "w ogóle",
  * "kotaa" → "kota") keep the engine's whole-word range, as do mixed edits ("Mimo, że" → "Mimo
- * iż"). Trimming takes the longest common prefix first, so the result is deterministic. A range
+ * iż"), and so do punctuation edits inside a word ("email" → "e-mail"). Trimming takes the longest common prefix first, so the result is deterministic. A range
  * edge inside a surrogate pair or before a combining mark is never produced; such issues stay
  * unchanged. Runs on the original text (after {@link NormalizingChecker}), so offsets are
  * original UTF-16 code units.
@@ -61,6 +61,10 @@ final class MinimalEditChecker implements Checker {
     }
     if (start == i.start() && end == i.end()) return i;
     if (!isSafeEdge(text, start) || !isSafeEdge(text, end)) return i;
+    // Inside a word ("e|mail", "e-|mail") the fix is a word correction: keep the word range.
+    if (start > 0 && end < text.length()
+        && Character.isLetterOrDigit(text.codePointBefore(start))
+        && Character.isLetterOrDigit(text.codePointAt(end))) return i;
     return new Issue(start, end, i.ruleId(), i.category(), i.engineCategory(), i.issueType(),
         i.message(), List.copyOf(inserted));
   }
