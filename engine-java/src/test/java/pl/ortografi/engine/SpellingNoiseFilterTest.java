@@ -98,6 +98,8 @@ class SpellingNoiseFilterTest {
     assertNull(reason("Spędziliśmy weekend w Spootu z rodziną.", "Spootu", List.of()));
     // Lowercased, the word is known: a stray capital, not a name.
     assertNull(reason("Ostatnio Przyjechałem bardzo późno.", "Przyjechałem", List.of()));
+    // Three edits away, no suggestion for the word itself: one undone edit brings a suggestion.
+    assertNull(reason("Mieszkam w Wraszwaie od lat.", "Wraszwaie", List.of()));
     // Far from anything known: still a name.
     assertEquals("name", reason("Spotkałem wczoraj Xiaolonga na konferencji.", "Xiaolonga", List.of("Ksiolonga")));
   }

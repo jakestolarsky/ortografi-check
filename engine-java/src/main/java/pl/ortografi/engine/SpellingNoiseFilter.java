@@ -89,7 +89,41 @@ final class SpellingNoiseFilter {
     String lower = w.toLowerCase(java.util.Locale.ROOT);
     if (speller.known(lower)) return true;
     if (speller.suggest(w).stream().anyMatch(s -> capitalised(s) && distance(s, w) <= 2)) return true;
-    return transposedKnown(w, speller) || transposedKnown(lower, speller);
+    return transposedKnown(w, speller) || transposedKnown(lower, speller) || nearViaNeighbour(w, speller);
+  }
+
+  /** Farthest a name typo can be from a known capitalised word and still be reported. */
+  static final int MAX_NAME_TYPO_EDITS = 3;
+
+  /** Shortest word allowed {@link #MAX_NAME_TYPO_EDITS} edits; shorter words get two. */
+  static final int LONG_NAME = 8;
+
+  /**
+   * The speller only suggests words about two edits away, so a typo three edits from a known name
+   * ("Wraszwaie" → "Warszawie") gets no suggestion at all. Undo one edit first (drop a letter or swap
+   * two neighbours) and ask again: a capitalised suggestion within three edits of the original word
+   * means a typo, not an unknown name. Three edits are allowed only for words of 8+ letters (two
+   * otherwise) and the suggestion must keep the first letter, so short foreign names such as
+   * "Breslau" or "Canidae" are not pulled towards an unrelated Polish word.
+   */
+  static boolean nearViaNeighbour(String w, Speller speller) {
+    java.util.Set<String> seen = new java.util.HashSet<>();
+    for (int i = 0; i < w.length(); i++) {
+      seen.add(w.substring(0, i) + w.substring(i + 1));
+      if (i + 1 < w.length() && w.charAt(i) != w.charAt(i + 1)) {
+        seen.add(w.substring(0, i) + w.charAt(i + 1) + w.charAt(i) + w.substring(i + 2));
+      }
+    }
+    for (String n : seen) {
+      if (n.length() < 3 || !capitalised(n)) continue;
+      for (String s : speller.suggest(n)) {
+        if (capitalised(s) && s.indexOf(' ') < 0 && s.charAt(0) == w.charAt(0)
+            && distance(s, w) <= (w.length() >= LONG_NAME ? MAX_NAME_TYPO_EDITS : 2)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /**

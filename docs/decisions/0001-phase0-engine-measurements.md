@@ -490,3 +490,31 @@ extra alarms, so both filters now ask the speller (`MorfologikSpellerRule.isMiss
 | dev correct sentences flagged | 0/101 | 0/101 |
 
 Held-out was not run again.
+
+### Typos up to three edits in names (engine/place-name-typos)
+
+Morfologik suggests words only about two edits away, so a name typo three edits from the real name
+(`Wraszwaie` → `Warszawie`) or one it cannot reach (`Gdńskaa`, `Bilaegostoku`) got no
+suggestion and the name filter hid it. `SpellingNoiseFilter.nearViaNeighbour` undoes one edit
+first (drops one letter or swaps two neighbours) and asks the speller again. The alert is kept when a
+capitalised one-word suggestion keeps the first letter and is within 3 edits of the original word
+(words of 8+ letters) or 2 edits (shorter words). Neither held-out nor any sealed set was looked at.
+
+Own test set (`PlaceNameTyposTest`): 40 sentences with typos 1–3 edits from Polish place names and
+first names (genitive, locative, instrumental, adjectival forms; insertions, deletions,
+substitutions, swaps, missing diacritics), and 20 correct sentences with rare real place and first
+names (`Szczebrzeszyn`, `Pcim`, `Wąchock`, `Bożydar`, `Gościsława`…).
+
+| | d174c91 | this change |
+|---|---:|---:|
+| own typo sentences reported | 33/40 | 40/40 |
+| own correct rare-name sentences flagged | 0/20 | 0/20 |
+| clean prose, old set (4,237) | 849 (200.4 / 1,000) | 904 (213.4 / 1,000) |
+| clean prose, post-1950 set (Corpus PR #35 @ c3d10d2, 4,254) | 777 (182.7 / 1,000) | 828 (194.6 / 1,000) |
+| MORFOLOGIK_RULE_PL_PL, old / post-1950 | 491 / 473 | 546 / 524 |
+| dev spelling P / R / top | 98.2% / 76.7% / 83.9% | unchanged |
+| dev correct sentences flagged | 0/101 | 0/101 |
+
+The new alarms are foreign or rare names within three edits of a Polish name (`Minclów`,
+`Szkarpawa`, `Steinmetza`, `Breslau`). A loosened rule without the first-letter and length limits
+added 63 on the old set and caught no more of our typos.
