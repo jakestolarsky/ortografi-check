@@ -96,19 +96,23 @@ Example (`p0-0001`, "Kupiłem chleb, i mleko."): `start 13, end 14, original ","
 
 ### Space edits (contracts/README.md "Edit conventions", PR #28)
 
-An issue's range is **exactly the text its fix replaces**, so spaces follow the same
-minimal-edit rules as commas (corpus annotation convention 1.2):
+**Typographic spacing** (category `punctuation`, subcategories `punctuation.spacing` and
+`punctuation.whitespace`) follows the same minimal-edit rules as commas (corpus annotation
+convention 1.2):
 
 * **Extra space** → a **one-character deletion** of that space, `fixes: [""]`
   (`end - start == 1`, `original " "`). A double space deletes **one** space, the second
   one (`Ala  ma` → range over the second space). A space before punctuation deletes the
-  space only (`kota ,` → range over the space; `punctuation.spacing`). A space that
-  splits a word (`nie łatwy` → `niełatwy`, `Na przeciwko` → `Naprzeciwko`) is the same
-  edit under its spelling subcategory.
+  space only (`kota ,` → range over the space, the comma stays).
 * **Missing space** → a **zero-length insertion** of `" "` at the offset where it belongs
-  (`start == end`, `original ""`, `fixes: [" "]`), e.g. `Niewiem` → `Nie wiem` has `3..3`.
-* Offsets are UTF-16, `corrected_text` is unchanged by this convention. The data test
-  checks every annotation whose only fix removes or adds a single space.
+  (`start == end`, `original ""`, `fixes: [" "]`).
+
+**Words written apart or together are not covered.** A word wrongly split or joined
+(`nie łatwy` → `niełatwy`, `Niewiem` → `Nie wiem`, `Na przeciwko` → `Naprzeciwko`,
+`zpowrotem` → `z powrotem`) is a **spelling** error and is annotated (and fixed) as a
+**whole-word replacement**, which reads better to users than "delete a space" or "insert a
+space". Offsets are UTF-16; `corrected_text` does not depend on this convention. The data
+test checks the rule for `punctuation` issues only.
 
 Scoring (1.3): an engine span wider than the comma (for example `, i` → ` i`) is still a
 detection under the default `overlap` match, but not a fix hit; the fix hit needs the
@@ -278,9 +282,10 @@ The JSONL file stays the single source of truth; markup is only an input aid.
 
 ## Changelog
 
-* **Corpus annotation convention 1.2** (contracts PR #28 space rule): extra spaces are
-  one-character deletions with `""`, missing spaces are zero-length insertions of `" "`.
-  30 examples converted (offsets only; texts and `corrected_text` unchanged). Line
+* **Corpus annotation convention 1.2** (contracts PR #28 space rule): typographic extra
+  spaces are one-character deletions with `""`, missing spaces are zero-length insertions
+  of `" "`. 6 punctuation examples converted (offsets only; texts and `corrected_text`
+  unchanged). Words written apart/together stay whole-word spelling replacements. Line
   `schema_version` stays 1.0/1.1 (no schema change).
 * **Corpus format 1.1** (PR #3 review): new `style` category for annotated style
   issues (always `required: false`, line `schema_version` ≥ 1.1). Older 1.0 lines
