@@ -94,8 +94,11 @@ identical-output smoke test (jlink vs full JDK) on unicode, 1k, 10k and 50k:
 | windows-latest (x64) | 49.2 MiB | 33.5 MiB | ≈101 MiB / ≈81 MiB |
 
 The JARs are platform-independent. The "ready" times in CI logs (1.5–2.2 s) come from shared
-runners and are not benchmark data. macOS Intel was not covered (`macos-latest` is arm64). A jlinked runtime for the HTTP server was not built (it needs at
-least `jdk.httpserver` too).
+runners and are not benchmark data. macOS Intel was not covered (`macos-latest` is arm64).
+CI pins Temurin `21.0.12+101` (= 21.0.12.1+1) and fails if any other build is resolved.
+
+A jlinked runtime for the HTTP server was not built (it needs at least `jdk.httpserver` too).
+
 
 Biggest adapter JARs: `grpc-netty-shaded` 10.1 MB, `fastutil-core` 6.3, `language-pl` 5.3,
 `guava` 2.9, `proto-google-common-protos` 2.6, `lucene-core` 2.3, `languagetool-core` 1.9.
@@ -208,6 +211,17 @@ engine's list, e.g. on upgrade.
 Review: OrBity approved the 12-entry list ([PR #2 comment](https://github.com/jakestolarsky/ortografi-check/pull/2#issuecomment-6086442770)).
 Borderline entries left as spelling (also approved): `mięli` → `mieli`, `lekażów` → `lekarzy`
 (typo plus wrong form), `dojąć` → `dojść`, `sposobowy` → `sposoby`.
+
+## Open items
+
+- **Memory at 50k:** with `-Xmx256m -XX:+UseSerialGC` the adapter's peak RSS is **379 MiB** on
+  a 50k-unit text. That is over the **350 MiB** goal for the *whole app* (WebView + Rust +
+  Java; PLAN.md section 11) before the WebView and Rust are even counted. Options to measure:
+  smaller heap or a different GC, a lower automatic-analysis limit, or chunked analysis
+  (only if it keeps wider-context rules intact).
+- **No macOS Intel coverage:** CI's `macos-latest` runner and all measurements so far are
+  arm64 or Linux x64. A separate Intel package is planned (PLAN.md section 12), so it needs
+  its own CI runner or hardware run.
 
 ## Leading option
 

@@ -32,15 +32,18 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          # Temurin 21.0.12.1+1 (Adoptium semver 21.0.12+101.0.LTS), same build as the local
+          # measurements. setup-java matches it as 21.0.12+101.
+          java-version: '21.0.12+101'
           cache: maven
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Java version
-        run: java -version
+      - name: Java version (must be Temurin 21.0.12.1+1)
+        run: |
+          java -version 2>&1 | tee /dev/stderr | grep -q 'Temurin-21.0.12.1+1'
 
       - name: Build and test (mvn verify)
         run: mvn -B -ntp verify
