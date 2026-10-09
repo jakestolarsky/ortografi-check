@@ -7,6 +7,9 @@ fn every_example_deserializes() {
     let mut n = 0;
     for entry in fs::read_dir(dir).unwrap() {
         let path = entry.unwrap().path();
+        if !path.is_file() {
+            continue;
+        }
         let raw = fs::read_to_string(&path).unwrap();
         parse_message(&raw)
             .unwrap_or_else(|e| panic!("{}: {e}", path.display()));

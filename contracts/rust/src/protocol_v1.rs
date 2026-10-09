@@ -245,6 +245,133 @@ impl ::std::convert::From<&CheckResult> for CheckResult {
         value.clone()
     }
 }
+#[doc = "Desktop IPC only (engine://status event, engine_status command); not a stdin/stdout message."]
+#[doc = r""]
+#[doc = r" <details><summary>JSON schema</summary>"]
+#[doc = r""]
+#[doc = r" ```json"]
+#[doc = "{"]
+#[doc = "  \"description\": \"Desktop IPC only (engine://status event, engine_status command); not a stdin/stdout message.\","]
+#[doc = "  \"type\": \"object\","]
+#[doc = "  \"required\": ["]
+#[doc = "    \"state\""]
+#[doc = "  ],"]
+#[doc = "  \"properties\": {"]
+#[doc = "    \"state\": {"]
+#[doc = "      \"enum\": ["]
+#[doc = "        \"starting\","]
+#[doc = "        \"ready\","]
+#[doc = "        \"busy\","]
+#[doc = "        \"restarting\","]
+#[doc = "        \"unavailable\""]
+#[doc = "      ]"]
+#[doc = "    }"]
+#[doc = "  },"]
+#[doc = "  \"additionalProperties\": false"]
+#[doc = "}"]
+#[doc = r" ```"]
+#[doc = r" </details>"]
+#[derive(:: serde :: Deserialize, :: serde :: Serialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct EngineStatus {
+    pub state: EngineStatusState,
+}
+impl ::std::convert::From<&EngineStatus> for EngineStatus {
+    fn from(value: &EngineStatus) -> Self {
+        value.clone()
+    }
+}
+#[doc = "`EngineStatusState`"]
+#[doc = r""]
+#[doc = r" <details><summary>JSON schema</summary>"]
+#[doc = r""]
+#[doc = r" ```json"]
+#[doc = "{"]
+#[doc = "  \"enum\": ["]
+#[doc = "    \"starting\","]
+#[doc = "    \"ready\","]
+#[doc = "    \"busy\","]
+#[doc = "    \"restarting\","]
+#[doc = "    \"unavailable\""]
+#[doc = "  ]"]
+#[doc = "}"]
+#[doc = r" ```"]
+#[doc = r" </details>"]
+#[derive(
+    :: serde :: Deserialize,
+    :: serde :: Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+)]
+pub enum EngineStatusState {
+    #[serde(rename = "starting")]
+    Starting,
+    #[serde(rename = "ready")]
+    Ready,
+    #[serde(rename = "busy")]
+    Busy,
+    #[serde(rename = "restarting")]
+    Restarting,
+    #[serde(rename = "unavailable")]
+    Unavailable,
+}
+impl ::std::convert::From<&Self> for EngineStatusState {
+    fn from(value: &EngineStatusState) -> Self {
+        value.clone()
+    }
+}
+impl ::std::fmt::Display for EngineStatusState {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Starting => f.write_str("starting"),
+            Self::Ready => f.write_str("ready"),
+            Self::Busy => f.write_str("busy"),
+            Self::Restarting => f.write_str("restarting"),
+            Self::Unavailable => f.write_str("unavailable"),
+        }
+    }
+}
+impl ::std::str::FromStr for EngineStatusState {
+    type Err = self::error::ConversionError;
+    fn from_str(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "starting" => Ok(Self::Starting),
+            "ready" => Ok(Self::Ready),
+            "busy" => Ok(Self::Busy),
+            "restarting" => Ok(Self::Restarting),
+            "unavailable" => Ok(Self::Unavailable),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for EngineStatusState {
+    type Error = self::error::ConversionError;
+    fn try_from(value: &str) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<&::std::string::String> for EngineStatusState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for EngineStatusState {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
 #[doc = "An error answering a `check` carries that check's id, docVersion and settingsVersion; receivers drop errors whose versions are not current. Errors not tied to a parseable check (e.g. MALFORMED_REQUEST with id null) omit both."]
 #[doc = r""]
 #[doc = r" <details><summary>JSON schema</summary>"]
