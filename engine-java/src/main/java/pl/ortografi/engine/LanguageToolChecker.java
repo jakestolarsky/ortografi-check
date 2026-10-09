@@ -17,29 +17,44 @@ public final class LanguageToolChecker implements Checker {
 
   private static final String LANGUAGE = "pl-PL";
   private final JLanguageTool lt;
-  private final PossessiveFromName.NameLexicon names;
+  private final PossessiveFromName.Lexicon names;
 
   public LanguageToolChecker() {
     Language polish = Languages.getLanguageForShortCode(LANGUAGE);
     this.lt = new JLanguageTool(polish);
     lt.addRule(new SubjectVerbCommaRule(JLanguageTool.getMessageBundle(polish)));
-    this.names = (name, gender) -> isPersonalName(polish, name, gender);
+    this.names = new PossessiveFromName.Lexicon() {
+      @Override
+      public boolean isPersonalName(String name, String gender) {
+        return LanguageToolChecker.isPersonalName(polish, name, gender);
+      }
+
+      @Override
+      public boolean isFormOf(String form, String lemma) {
+        return readings(polish, form).stream().anyMatch(r -> lemma.equals(r.getLemma()));
+      }
+    };
+  }
+
+  private static List<AnalyzedToken> readings(Language polish, String word) {
+    try {
+      return polish.getTagger().tag(List.of(word)).get(0).getReadings();
+    } catch (IOException e) {
+      return List.of();
+    }
   }
 
   /** A capitalised lemma equal to {@code name}, tagged subst:sg:nom with that gender. */
+  /** A capitalised lemma equal to {@code name}, tagged subst:sg:nom with that gender. */
   private static boolean isPersonalName(Language polish, String name, String gender) {
-    try {
-      for (AnalyzedToken r : polish.getTagger().tag(List.of(name)).get(0)) {
-        String tag = r.getPOSTag();
-        if (name.equals(r.getLemma()) && tag != null && tag.startsWith("subst:sg:nom:")
-            && List.of(tag.split(":")[3].split("\\.")).contains(gender)) {
-          return true;
-        }
+    for (AnalyzedToken r : readings(polish, name)) {
+      String tag = r.getPOSTag();
+      if (name.equals(r.getLemma()) && tag != null && tag.startsWith("subst:sg:nom:")
+          && List.of(tag.split(":")[3].split("\\.")).contains(gender)) {
+        return true;
       }
-      return false;
-    } catch (IOException e) {
-      return false;
     }
+    return false;
   }
 
   @Override

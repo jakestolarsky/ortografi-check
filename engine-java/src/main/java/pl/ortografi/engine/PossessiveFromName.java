@@ -20,9 +20,12 @@ import java.util.regex.Pattern;
  */
 final class PossessiveFromName {
 
-  /** Answers whether {@code name} is a personal name of {@code gender} ("f" or "m1"). */
-  interface NameLexicon {
+  interface Lexicon {
+    /** Whether {@code name} is a personal name of {@code gender} ("f" or "m1"). */
     boolean isPersonalName(String name, String gender);
+
+    /** Whether {@code form} is an inflected form of {@code lemma}. */
+    boolean isFormOf(String form, String lemma);
   }
 
   private static final String ENDINGS = "(|a|e|ego|emu|ej|ą|ym|ych|ymi|i)";
@@ -32,7 +35,7 @@ final class PossessiveFromName {
 
   private PossessiveFromName() {}
 
-  static boolean isLowercasePossessiveFromName(String word, NameLexicon names) {
+  static boolean isLowercasePossessiveFromName(String word, Lexicon names) {
     if (word == null || word.isEmpty() || !word.equals(word.toLowerCase(PL))) {
       return false;
     }
