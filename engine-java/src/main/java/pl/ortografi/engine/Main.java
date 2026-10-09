@@ -15,7 +15,7 @@ public final class Main {
 
   /** The production engine: LanguageTool PL behind NFC normalisation with an offset map. */
   static Checker engine() {
-    return new InsertionNarrowingChecker(new NormalizingChecker(new LanguageToolChecker()));
+    return new MinimalEditChecker(new NormalizingChecker(new LanguageToolChecker()));
   }
 
   public static void main(String[] args) throws Exception {

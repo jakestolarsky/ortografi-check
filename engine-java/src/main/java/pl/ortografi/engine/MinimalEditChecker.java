@@ -15,11 +15,11 @@ import java.util.List;
  * pair or before a combining mark is never produced; such issues stay unchanged.
  * Runs on the original text (after {@link NormalizingChecker}), so offsets are original UTF-16.
  */
-final class InsertionNarrowingChecker implements Checker {
+final class MinimalEditChecker implements Checker {
 
   private final Checker inner;
 
-  InsertionNarrowingChecker(Checker inner) {
+  MinimalEditChecker(Checker inner) {
     this.inner = inner;
   }
 
