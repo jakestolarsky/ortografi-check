@@ -219,6 +219,39 @@ Example fixture: `tests/corpus/tools/fixtures/v1-results.jsonl`.
 
 Scores describe this corpus only, never Polish in general (PLAN.md §10).
 
+## Clean-prose false-alarm set
+
+`tests/corpus/clean-prose/` holds about 4200 correct sentences of published Polish prose
+used only to measure false alarms. It is **separate from the scored corpus**: it lives
+outside `data/`, so `score.mjs`, `validate.mjs` and the data tests never read it, and it
+has no expected issues. Sources, licenses and filters: `clean-prose/SOURCES.md`.
+
+* `clean-prose/wikipedia/sentences.jsonl`: Polish Wikipedia, **CC BY-SA 4.0**, with its own
+  `LICENSE` (share-alike stays inside that folder). Ids `cp-wp-NNNNN`.
+* `clean-prose/wolnelektury/sentences.jsonl`: Wolne Lektury, public domain, only texts based on
+  editions from 1950 or later (modern orthography), with its own `LICENSE`. Ids `cp-wl-NNNNN`.
+
+One JSON object per line: `id`, `text` (NFC), `source_title`, `author`, `url`, `license`,
+`reform_2026` (ids of matching reform patterns, usually `[]`), plus `revision` and `permalink`
+(Wikipedia) or `edition` (Wolne Lektury). Offsets in engine output are UTF-16, as everywhere.
+
+**Engine input/output.** Send each sentence as its own check, with request id
+`corpus-<sentence id>` (the same test-tooling convention as for corpus examples) or the bare
+id. Results may be corpus result lines or v1 protocol messages (read through the same loader
+as `score.mjs`); ids that are not clean-prose sentences are ignored.
+
+```sh
+node tests/corpus/tools/fp-rate.mjs --results engine-clean-prose.jsonl [--top 20] [--json]
+```
+
+The report gives total alerts and alerts per 1000 scored sentences, false alarms by rule id
+and by category, and the sentences with the most false alarms. Every alert counts as a false
+alarm **except** alerts touching a span matched by `tools/reform-2026.mjs`: those are counted
+as "pre-2026-reform spelling" (by pattern), because the source predates the 2026 spelling
+reform and the engine may be right under the new rules. The reform patterns are approximate
+regex heuristics (see `clean-prose/SOURCES.md`). Missing sentences and v1 `error`s are
+reported but not scored.
+
 ## Commands
 
 ```sh
@@ -259,6 +292,9 @@ The JSONL file stays the single source of truth; markup is only an input aid.
   controls; p3-0022 became a clean control in review) and 10 held-out (`heldout/phase3-heldout.jsonl`, 7 errors + 3 clean) grammar
   examples, added because grammar recall was the weakest category in Engine's PR #18 dev
   run (41.2%). New subcategories: `grammar.case_government`, `grammar.participle`.
+* **Clean-prose false-alarm set** (separate from the scored corpus): Wikipedia (CC BY-SA 4.0)
+  and Wolne Lektury (public domain, post-1950 editions) sentences, `fp-rate.mjs`, and the
+  approximate 2026-reform detector `reform-2026.mjs`; see "Clean-prose false-alarm set".
 
 * **Corpus format 1.0**: unchanged in the first phase-1 commit (no schema change). The `split` field
   existed from the start; phase 1 only assigns `heldout`.
