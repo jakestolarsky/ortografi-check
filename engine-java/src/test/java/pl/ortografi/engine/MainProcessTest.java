@@ -31,7 +31,8 @@ class MainProcessTest {
       assertEquals("ready", ready.get("type").asText());
       assertEquals("6.8", ready.get("engineVersion").asText());
 
-      String text = "Zażółć 😀 kotaa.";
+      // NFD "Zażółć" must not be flagged; the only issue is "kotaa", mapped to original offsets.
+      String text = "Zaz\u0307o\u0301łc\u0301 😀 kotaa.";
       in.write(
           json.writeValueAsString(
                   json.createObjectNode()
@@ -46,6 +47,7 @@ class MainProcessTest {
       JsonNode res = json.readTree(out.readLine());
       assertEquals("result", res.get("type").asText());
       assertEquals("e2e", res.get("id").asText());
+      assertEquals(1, res.get("issues").size(), res::toString);
       JsonNode issue = res.get("issues").get(0);
       assertEquals(
           "kotaa", text.substring(issue.get("start").asInt(), issue.get("end").asInt()));

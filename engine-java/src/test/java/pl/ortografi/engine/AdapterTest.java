@@ -27,7 +27,7 @@ class AdapterTest {
       if (failWith != null) throw failWith;
       List<Issue> out = new ArrayList<>();
       for (int at = text.indexOf("zle"); at >= 0; at = text.indexOf("zle", at + 1)) {
-        out.add(new Issue(at, at + 3, "FAKE_RULE", "TYPOS", "misspelling", "Błąd", List.of("źle")));
+        out.add(new Issue(at, at + 3, "FAKE_RULE", "spelling", "TYPOS", "misspelling", "Błąd", List.of("źle")));
       }
       return out;
     }
@@ -93,6 +93,8 @@ class AdapterTest {
     assertEquals(text.indexOf("zle"), issues.get(0).get("start").asInt());
     assertEquals(text.indexOf("zle") + 3, issues.get(0).get("end").asInt());
     assertEquals("FAKE_RULE", issues.get(0).get("ruleId").asText());
+    assertEquals("spelling", issues.get(0).get("category").asText());
+    assertEquals("TYPOS", issues.get(0).get("engineCategory").asText());
     assertEquals("źle", issues.get(0).get("replacements").get(0).asText());
     assertTrue(res.get("analysisMs").isNumber());
   }

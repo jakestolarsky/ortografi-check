@@ -51,7 +51,8 @@ class LanguageToolCheckerTest {
     Issue i = onlyIssueCovering(issues, text, "kotaa");
     assertEquals(7, i.start());
     assertEquals(12, i.end());
-    assertEquals("TYPOS", i.category());
+    assertEquals("spelling", i.category());
+    assertEquals("TYPOS", i.engineCategory());
     assertTrue(i.replacements().contains("kota"), i::toString);
   }
 
@@ -100,7 +101,8 @@ class LanguageToolCheckerTest {
     String text = "Wiem że przyjdzie jutro.";
     List<Issue> issues = checker.check(text);
     Issue i = onlyIssueCovering(issues, text, "Wiem że");
-    assertEquals("PUNCTUATION", i.category());
+    assertEquals("punctuation", i.category());
+    assertEquals("PUNCTUATION", i.engineCategory());
     assertTrue(i.replacements().contains("Wiem, że"), i::toString);
   }
 
@@ -109,7 +111,7 @@ class LanguageToolCheckerTest {
     String text = "Kupiłem chleb, i mleko.";
     List<Issue> issues = checker.check(text);
     Issue i = onlyIssueCovering(issues, text, ", i");
-    assertEquals("PUNCTUATION", i.category());
+    assertEquals("punctuation", i.category());
   }
 
   @Test
@@ -130,6 +132,27 @@ class LanguageToolCheckerTest {
     assertEquals(3, issues.size(), issues::toString);
     assertTrue(issues.stream().allMatch(i -> i.ruleId().equals("MORFOLOGIK_RULE_PL_PL")));
     assertOffsetsAreValidUtf16(nfd, issues);
+  }
+
+  @Test
+  void normalizingEngineAcceptsNfdPolishThatTheRawEngineRejects() throws Exception {
+    String nfd = java.text.Normalizer.normalize("Zażółć gęślą jaźń.", java.text.Normalizer.Form.NFD);
+    String copy = new String(nfd);
+    assertEquals(List.of(), new NormalizingChecker(checker).check(nfd));
+    assertEquals(copy, nfd);
+  }
+
+  @Test
+  void normalizingEngineMapsNfdMisspellingBackToOriginalRange() throws Exception {
+    // "żułw" (should be "żółw") typed in NFD, after an emoji and a ZWJ sequence.
+    String word = "z\u0307ułw";
+    String text = "😀 👨‍👩‍👧 Widziałem " + word + "a w ogrodzie, i kotaa.";
+    List<Issue> issues = new NormalizingChecker(checker).check(text);
+    Issue i = onlyIssueCovering(issues, text, word + "a");
+    assertEquals("spelling", i.category());
+    assertTrue(i.replacements().contains("żółwia"), i::toString);
+    onlyIssueCovering(issues, text, "kotaa");
+    assertOffsetsAreValidUtf16(text, issues);
   }
 
   @Test
