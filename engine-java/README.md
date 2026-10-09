@@ -9,7 +9,7 @@ Experimental: protocol v1 below is a phase-0 sketch, not the final versioned con
 Requires Temurin 21 (measured with 21.0.12.1+1) and Maven 3.9.
 
 ```sh
-mvn test            # 52 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
+mvn test            # 62 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
 mvn package         # target/ortografi-engine-0.0.1-phase0.jar + target/lib/*.jar (engine JARs kept separate, LGPL)
 java -jar target/ortografi-engine-0.0.1-phase0.jar
 scripts/jlink-runtime.sh --check      # pinned runtime-modules.txt still covers jdeps output
