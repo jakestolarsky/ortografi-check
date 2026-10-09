@@ -9,7 +9,7 @@ Experimental: protocol v1 below is a phase-0 sketch, not the final versioned con
 Requires Temurin 21 (measured with 21.0.12.1+1) and Maven 3.9.
 
 ```sh
-mvn test            # 43 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
+mvn test            # 52 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
 mvn package         # target/ortografi-engine-0.0.1-phase0.jar + target/lib/*.jar (engine JARs kept separate, LGPL)
 java -jar target/ortografi-engine-0.0.1-phase0.jar
 ```
@@ -34,7 +34,8 @@ only (`System.out` is redirected to stderr at startup); stderr carries logs and 
 - The engine analyses an **NFC copy** of the text (`NormalizingChecker` + `NfcText`); ranges
   are mapped back to the original, which is never altered. Replacements are NFC.
 - `category` is the product category (`spelling` | `punctuation` | `grammar` | `style` |
-  `other`) from `CategoryMapper`, the only place mapping happens; `engineCategory` is
+  `other`) from `CategoryMapper`, the only place mapping happens (per-rule overrides for
+  `SKROTY_Z_KROPKA`, `JEDNOSTKA_LICZBA` and the inflection entries of `PL_SIMPLE_REPLACE`); `engineCategory` is
   LanguageTool's category ID.
 - Errors: `{"type":"error","id":…|null,"code":…,"detail":…}` with codes
   `MALFORMED_REQUEST`, `UNSUPPORTED_PROTOCOL`, `UNKNOWN_TYPE`, `TEXT_TOO_LONG`

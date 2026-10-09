@@ -113,7 +113,9 @@ Raw output: `benchmarks/results/corpus-phase0-starter.*`.
 - Clean set: **0/24** examples with a false positive (target ≤ 2 %).
 - Release-critical failures: **p0-0004** ("Mój starszy brat, pracuje w szpitalu." —
   comma between subject and predicate is not detected).
-- `--strict-category`: overall P 91.4 % / R 72.7 % / F1 81.0 % (3 category disagreements).
+- `--strict-category`: **identical** to the default (overall P 100 % / R 79.5 % / F1 88.6 %,
+  0 category disagreements) after the per-rule overrides below. Before them: F1 81.0 %,
+  3 disagreements.
 - `--match exact`: overall F1 55.7 %; release-critical failures p0-0001, p0-0003, p0-0004.
   LanguageTool marks comma issues over word spans (`Wiem że` → `Wiem, że`, `chleb, i`),
   while the corpus uses the minimal span or a zero-length insertion point. The default
@@ -130,7 +132,16 @@ Raw output: `benchmarks/results/corpus-phase0-starter.*`.
 
 Scores describe this 67-example corpus only, not Polish in general (PLAN.md section 10).
 
-### Category mapping (one table: `CategoryMapper`, by LanguageTool category ID)
+### Category mapping (one place: `CategoryMapper`)
+
+Order: per-rule override → LanguageTool category ID table → issue-type fallback. Never by
+message text. `style` and `other` are kept in the output (style is not counted as an error).
+
+| Rule-level overrides (requested by the corpus owner) | Product category |
+|---|---|
+| `SKROTY_Z_KROPKA` (all 7 sub-rules: abbreviation needs a dot, e.g. `np` → `np.`) | punctuation |
+| `JEDNOSTKA_LICZBA` (all 4 sub-rules: space after number/year, `o` → `°`) | punctuation |
+| `PL_SIMPLE_REPLACE`, **only** matches whose text is one of 12 inflection entries | grammar |
 
 | LanguageTool category IDs | Product category |
 |---|---|
@@ -138,17 +149,24 @@ Scores describe this 67-example corpus only, not Polish in general (PLAN.md sect
 | PUNCTUATION, TYPOGRAPHY | punctuation |
 | GRAMMAR, GENDER, SYNTAX, WORD_ORDER | grammar |
 | STYLE, REDUNDANCY, SEMANTICS, CONFUSED_WORDS | style (not counted as errors) |
-| MISC, NUMBERS | other |
+| MISC, NUMBERS (other than JEDNOSTKA_LICZBA) | other |
 | unknown ID | from issue type (misspelling → spelling, grammar → grammar, typographical/whitespace → punctuation, style → style), else other |
 
-Category disagreements on the corpus (each is a matched issue, so it's a labelling question):
-- `PL_SIMPLE_REPLACE` (category PRAWDOPODOBNE_LITEROWKI) flags `Poszłem` → spelling;
-  the corpus calls it `grammar.inflection`. A category-level map can't separate this; a
-  per-rule override would be needed.
-- `SKROTY_Z_KROPKA` (`np` → `np.`) sits in LanguageTool's SPELLING category; the corpus calls
-  it `punctuation.abbreviation`. Candidate per-rule override.
-- `JEDNOSTKA_LICZBA` (`2025r.` → `2025 r.`) is in NUMBERS → other; the corpus calls it
-  `punctuation.spacing`. Mapping NUMBERS → punctuation is a candidate.
+**PL_SIMPLE_REPLACE was not overridden wholesale.** In language-pl 6.8 it is
+`org/languagetool/rules/pl/replace.txt`: 227 context-free "wrong=right" entries, described
+in its header as rare typos the speller misses. Almost all are spelling: typos and missing
+diacritics (`piatek`, `sie`, `juz`, `dzis`), joined/split words (`wogle`, `narazie`,
+`poprostu`), foreign-name declension (`Stevowi` → `Steve’owi`, ~50 entries), `-ii` endings
+(`kopi`, `aleji`). Only 12 entries are wrong inflected forms: `szłem`, `poszłem`,
+`chłopcowi`, `bratowi`, `synie`, `domie`, `akcesorii`, `akwarii`, `centr`, `lubieć`,
+`obiedwie`, `Europom`. LanguageTool reports no sub-rule ID for these, so the override keys
+on (rule ID, lower-cased matched text in the NFC copy). That stays clean because the rule
+matches exactly one listed word. A test fails if a listed entry disappears from the
+engine's list, e.g. on upgrade.
+
+For PR review: the 12-entry list is my judgement and needs confirming by the Polish reviewer.
+Borderline entries left as spelling: `mięli` → `mieli`, `lekażów` → `lekarzy` (typo plus
+wrong form), `dojąć` → `dojść`, `sposobowy` → `sposoby`.
 
 ## Leading option
 
