@@ -178,18 +178,20 @@ impl Supervisor {
         g.timeouts = 0;
     }
 
-    /// Manual retry after `unavailable`: clears the budgets and sets `starting` **before
+    /// Manual retry from `unavailable` (no-op in any other state): clears the budgets and sets `starting` **before
     /// returning**, so a check submitted right after is queued (delivered at `ready`) rather
     /// than answered ENGINE_UNAVAILABLE. The spawn itself continues in the background.
     pub fn retry(&self) {
         {
             let mut g = self.core.inner.lock().unwrap();
+            // Only meaningful from `unavailable`; in any other state the engine is running
+            // or already being (re)spawned, so this is a no-op (budgets untouched).
+            if !g.unavailable {
+                return;
+            }
             g.unavailable = false;
             g.crashes = 0;
             g.timeouts = 0;
-            if g.running.is_some() {
-                return;
-            }
             g.announced = true;
             self.core.set_state(EngineState::Starting);
         }

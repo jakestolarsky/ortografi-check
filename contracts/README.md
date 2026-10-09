@@ -50,15 +50,17 @@ CI (`desktop.yml`, job `contracts`) regenerates and fails on any diff, then runs
 | `engine://message` | event | A v1 `CheckResult` or `ErrorMessage`, **unchanged**. Not emitted for stale answers (older docVersion/settingsVersion), or for a waiting check superseded by a newer one before it was sent |
 | `engine_status` | command | `EngineStatus` (`$defs/EngineStatus`, `{ "state": ... }`). Call once on load |
 | `engine://status` | event | `EngineStatus` on every change |
-| `engine_retry` | command | Manual retry after `unavailable`. The state is already `starting` when the command returns (the spawn continues in the background), so a check sent right after it is queued and delivered at `ready`, not answered `ENGINE_UNAVAILABLE` |
+| `engine_retry` | command | Manual retry from `unavailable` (no-op in any other state). The state is already `starting` when the command returns (the spawn continues in the background), so a check sent right after it is queued and delivered at `ready`, not answered `ENGINE_UNAVAILABLE` |
 | `engine_reset_session` | command | **Call on UI load.** Clears the stale filter's versions (a WebView reload restarts at docVersion 1) and drops any waiting check |
 
 `EngineState`:
 - `starting`: the first start, launched in the background at app start.
 - `ready`
 - `busy`: a check is running.
-- `restarting`: stopped after a crash or timeout, respawned for the next check.
+- `restarting`: the engine is being respawned in the background, immediately after a crash, timeout or invalid line (with the crash backoff); see the failure contract below.
 - `unavailable`: the engine can't run until a manual retry. This happens when it can't be spawned, after more than one consecutive crash or invalid line, or after 3 consecutive TIMEOUTs with no successful result in between.
+
+While `starting` or `restarting`, a check is held as the newest waiting check and sent at `ready`. `engine_retry` is only needed from `unavailable`; in any other state it is a no-op (no state change, no spawn, failure budgets untouched).
 
 Notes:
 - **The stale filter ignores `id`.** It compares only (docVersion, settingsVersion) with the latest request. A retry may reuse the same versions, so the UI matches answers by `id`.
