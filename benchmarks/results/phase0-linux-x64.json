@@ -1,0 +1,1975 @@
+{
+ "meta": {
+  "date": "2026-10-09 19:35 CEST",
+  "java": "openjdk version \"21.0.12.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+  "cpu": "Intel(R) Xeon(R) Processor",
+  "nproc": 8,
+  "kernel": "6.12.94+",
+  "samples_utf16_units": {
+   "1k": 1089,
+   "10k": 10453
+  }
+ },
+ "results": [
+  {
+   "option": "adapter",
+   "jvm_flags": [],
+   "cold_ready_ms": {
+    "n": 30,
+    "p50": 1079.6,
+    "p95": 1283.9,
+    "mean": 1107.7,
+    "min": 1001.4,
+    "max": 1302.3
+   },
+   "cold_first_result_1k_ms": {
+    "n": 30,
+    "p50": 2003.5,
+    "p95": 2375.3,
+    "mean": 2052.6,
+    "min": 1853.5,
+    "max": 2563.9
+   },
+   "issues": {
+    "1k": 6,
+    "10k": 49
+   },
+   "issue_list": {
+    "1k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ],
+    "10k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1658,
+      1664,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1820,
+      1878,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      1980,
+      1983,
+      "PRZECINEK_ANI"
+     ],
+     [
+      2176,
+      2188,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      2270,
+      2282,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      2475,
+      2486,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      2892,
+      2905,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3076,
+      3083,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3223,
+      3229,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3385,
+      3443,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      3545,
+      3548,
+      "PRZECINEK_ANI"
+     ],
+     [
+      3741,
+      3753,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      3835,
+      3847,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      4040,
+      4051,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4566,
+      4579,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      4765,
+      4771,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4927,
+      4985,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      5087,
+      5090,
+      "PRZECINEK_ANI"
+     ],
+     [
+      5283,
+      5295,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      5377,
+      5389,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      5582,
+      5593,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      5851,
+      5864,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6035,
+      6042,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6345,
+      6351,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6507,
+      6565,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      6667,
+      6670,
+      "PRZECINEK_ANI"
+     ],
+     [
+      6863,
+      6875,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      6957,
+      6969,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      7162,
+      7173,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      7528,
+      7541,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      7875,
+      7881,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8037,
+      8095,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      8197,
+      8200,
+      "PRZECINEK_ANI"
+     ],
+     [
+      8393,
+      8405,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      8487,
+      8499,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      8692,
+      8703,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8991,
+      8998,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9461,
+      9467,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9623,
+      9681,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      9783,
+      9786,
+      "PRZECINEK_ANI"
+     ],
+     [
+      9979,
+      9991,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      10073,
+      10085,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      10278,
+      10289,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ]
+   },
+   "warm_1k_ms": {
+    "n": 30,
+    "p50": 36.8,
+    "p95": 40.4,
+    "mean": 37.5,
+    "min": 33.9,
+    "max": 54.5
+   },
+   "warm_10k_ms": {
+    "n": 30,
+    "p50": 308.7,
+    "p95": 341.5,
+    "mean": 313.7,
+    "min": 290.8,
+    "max": 363.4
+   },
+   "memory_after_warm_mib": {
+    "VmHWM": 457.5,
+    "VmRSS": 456.9
+   }
+  },
+  {
+   "option": "http-minimal",
+   "jvm_flags": [],
+   "cold_ready_ms": {
+    "n": 30,
+    "p50": 708.7,
+    "p95": 763.5,
+    "mean": 706.8,
+    "min": 651.4,
+    "max": 771.4
+   },
+   "cold_first_result_1k_ms": {
+    "n": 30,
+    "p50": 2332.1,
+    "p95": 2416.4,
+    "mean": 2327.5,
+    "min": 2212.3,
+    "max": 2488.0
+   },
+   "issues": {
+    "1k": 6,
+    "10k": 49
+   },
+   "issue_list": {
+    "1k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ],
+    "10k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1658,
+      1664,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1820,
+      1878,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      1980,
+      1983,
+      "PRZECINEK_ANI"
+     ],
+     [
+      2176,
+      2188,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      2270,
+      2282,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      2475,
+      2486,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      2892,
+      2905,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3076,
+      3083,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3223,
+      3229,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3385,
+      3443,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      3545,
+      3548,
+      "PRZECINEK_ANI"
+     ],
+     [
+      3741,
+      3753,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      3835,
+      3847,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      4040,
+      4051,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4566,
+      4579,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      4765,
+      4771,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4927,
+      4985,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      5087,
+      5090,
+      "PRZECINEK_ANI"
+     ],
+     [
+      5283,
+      5295,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      5377,
+      5389,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      5582,
+      5593,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      5851,
+      5864,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6035,
+      6042,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6345,
+      6351,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6507,
+      6565,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      6667,
+      6670,
+      "PRZECINEK_ANI"
+     ],
+     [
+      6863,
+      6875,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      6957,
+      6969,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      7162,
+      7173,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      7528,
+      7541,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      7875,
+      7881,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8037,
+      8095,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      8197,
+      8200,
+      "PRZECINEK_ANI"
+     ],
+     [
+      8393,
+      8405,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      8487,
+      8499,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      8692,
+      8703,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8991,
+      8998,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9461,
+      9467,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9623,
+      9681,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      9783,
+      9786,
+      "PRZECINEK_ANI"
+     ],
+     [
+      9979,
+      9991,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      10073,
+      10085,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      10278,
+      10289,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ]
+   },
+   "warm_1k_ms": {
+    "n": 30,
+    "p50": 142.4,
+    "p95": 171.9,
+    "mean": 148.5,
+    "min": 132.8,
+    "max": 228.1
+   },
+   "warm_10k_ms": {
+    "n": 30,
+    "p50": 423.1,
+    "p95": 468.6,
+    "mean": 425.4,
+    "min": 389.7,
+    "max": 489.6
+   },
+   "memory_after_warm_mib": {
+    "VmHWM": 661.6,
+    "VmRSS": 661.6
+   }
+  },
+  {
+   "option": "http-full",
+   "jvm_flags": [],
+   "cold_ready_ms": {
+    "n": 30,
+    "p50": 1187.3,
+    "p95": 1291.6,
+    "mean": 1198.1,
+    "min": 1103.9,
+    "max": 1302.4
+   },
+   "cold_first_result_1k_ms": {
+    "n": 30,
+    "p50": 2835.7,
+    "p95": 3010.0,
+    "mean": 2867.3,
+    "min": 2736.5,
+    "max": 3052.2
+   },
+   "issues": {
+    "1k": 6,
+    "10k": 49
+   },
+   "issue_list": {
+    "1k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ],
+    "10k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1658,
+      1664,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1820,
+      1878,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      1980,
+      1983,
+      "PRZECINEK_ANI"
+     ],
+     [
+      2176,
+      2188,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      2270,
+      2282,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      2475,
+      2486,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      2892,
+      2905,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3076,
+      3083,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3223,
+      3229,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3385,
+      3443,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      3545,
+      3548,
+      "PRZECINEK_ANI"
+     ],
+     [
+      3741,
+      3753,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      3835,
+      3847,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      4040,
+      4051,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4566,
+      4579,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      4765,
+      4771,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4927,
+      4985,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      5087,
+      5090,
+      "PRZECINEK_ANI"
+     ],
+     [
+      5283,
+      5295,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      5377,
+      5389,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      5582,
+      5593,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      5851,
+      5864,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6035,
+      6042,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6345,
+      6351,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6507,
+      6565,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      6667,
+      6670,
+      "PRZECINEK_ANI"
+     ],
+     [
+      6863,
+      6875,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      6957,
+      6969,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      7162,
+      7173,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      7528,
+      7541,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      7875,
+      7881,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8037,
+      8095,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      8197,
+      8200,
+      "PRZECINEK_ANI"
+     ],
+     [
+      8393,
+      8405,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      8487,
+      8499,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      8692,
+      8703,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8991,
+      8998,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9461,
+      9467,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9623,
+      9681,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      9783,
+      9786,
+      "PRZECINEK_ANI"
+     ],
+     [
+      9979,
+      9991,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      10073,
+      10085,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      10278,
+      10289,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ]
+   },
+   "warm_1k_ms": {
+    "n": 30,
+    "p50": 149.2,
+    "p95": 179.5,
+    "mean": 153.0,
+    "min": 135.0,
+    "max": 190.0
+   },
+   "warm_10k_ms": {
+    "n": 30,
+    "p50": 446.0,
+    "p95": 506.2,
+    "mean": 451.1,
+    "min": 404.4,
+    "max": 558.8
+   },
+   "memory_after_warm_mib": {
+    "VmHWM": 584.5,
+    "VmRSS": 583.0
+   }
+  },
+  {
+   "option": "adapter",
+   "jvm_flags": [
+    "-Xmx256m",
+    "-XX:+UseSerialGC",
+    "-XX:TieredStopAtLevel=1"
+   ],
+   "cold_ready_ms": {
+    "n": 30,
+    "p50": 1029.9,
+    "p95": 1224.2,
+    "mean": 1048.6,
+    "min": 977.0,
+    "max": 1254.6
+   },
+   "cold_first_result_1k_ms": {
+    "n": 30,
+    "p50": 2043.9,
+    "p95": 2262.8,
+    "mean": 2055.8,
+    "min": 1950.6,
+    "max": 2290.3
+   },
+   "issues": {
+    "1k": 6,
+    "10k": 49
+   },
+   "issue_list": {
+    "1k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ],
+    "10k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1658,
+      1664,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1820,
+      1878,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      1980,
+      1983,
+      "PRZECINEK_ANI"
+     ],
+     [
+      2176,
+      2188,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      2270,
+      2282,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      2475,
+      2486,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      2892,
+      2905,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3076,
+      3083,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3223,
+      3229,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3385,
+      3443,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      3545,
+      3548,
+      "PRZECINEK_ANI"
+     ],
+     [
+      3741,
+      3753,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      3835,
+      3847,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      4040,
+      4051,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4566,
+      4579,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      4765,
+      4771,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4927,
+      4985,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      5087,
+      5090,
+      "PRZECINEK_ANI"
+     ],
+     [
+      5283,
+      5295,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      5377,
+      5389,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      5582,
+      5593,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      5851,
+      5864,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6035,
+      6042,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6345,
+      6351,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6507,
+      6565,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      6667,
+      6670,
+      "PRZECINEK_ANI"
+     ],
+     [
+      6863,
+      6875,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      6957,
+      6969,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      7162,
+      7173,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      7528,
+      7541,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      7875,
+      7881,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8037,
+      8095,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      8197,
+      8200,
+      "PRZECINEK_ANI"
+     ],
+     [
+      8393,
+      8405,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      8487,
+      8499,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      8692,
+      8703,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8991,
+      8998,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9461,
+      9467,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9623,
+      9681,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      9783,
+      9786,
+      "PRZECINEK_ANI"
+     ],
+     [
+      9979,
+      9991,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      10073,
+      10085,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      10278,
+      10289,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ]
+   },
+   "warm_1k_ms": {
+    "n": 30,
+    "p50": 54.9,
+    "p95": 57.2,
+    "mean": 54.5,
+    "min": 50.8,
+    "max": 57.5
+   },
+   "warm_10k_ms": {
+    "n": 30,
+    "p50": 491.0,
+    "p95": 523.7,
+    "mean": 498.1,
+    "min": 469.9,
+    "max": 576.8
+   },
+   "memory_after_warm_mib": {
+    "VmHWM": 201.4,
+    "VmRSS": 201.4
+   }
+  },
+  {
+   "option": "adapter",
+   "jvm_flags": [
+    "-Xmx256m",
+    "-XX:+UseSerialGC"
+   ],
+   "cold_ready_ms": {
+    "n": 30,
+    "p50": 1122.1,
+    "p95": 1277.2,
+    "mean": 1147.8,
+    "min": 1058.6,
+    "max": 1486.3
+   },
+   "cold_first_result_1k_ms": {
+    "n": 30,
+    "p50": 1993.5,
+    "p95": 2273.6,
+    "mean": 2033.1,
+    "min": 1860.5,
+    "max": 2597.5
+   },
+   "issues": {
+    "1k": 6,
+    "10k": 49
+   },
+   "issue_list": {
+    "1k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ],
+    "10k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1658,
+      1664,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1820,
+      1878,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      1980,
+      1983,
+      "PRZECINEK_ANI"
+     ],
+     [
+      2176,
+      2188,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      2270,
+      2282,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      2475,
+      2486,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      2892,
+      2905,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3076,
+      3083,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3223,
+      3229,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3385,
+      3443,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      3545,
+      3548,
+      "PRZECINEK_ANI"
+     ],
+     [
+      3741,
+      3753,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      3835,
+      3847,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      4040,
+      4051,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4566,
+      4579,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      4765,
+      4771,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4927,
+      4985,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      5087,
+      5090,
+      "PRZECINEK_ANI"
+     ],
+     [
+      5283,
+      5295,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      5377,
+      5389,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      5582,
+      5593,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      5851,
+      5864,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6035,
+      6042,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6345,
+      6351,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6507,
+      6565,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      6667,
+      6670,
+      "PRZECINEK_ANI"
+     ],
+     [
+      6863,
+      6875,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      6957,
+      6969,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      7162,
+      7173,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      7528,
+      7541,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      7875,
+      7881,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8037,
+      8095,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      8197,
+      8200,
+      "PRZECINEK_ANI"
+     ],
+     [
+      8393,
+      8405,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      8487,
+      8499,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      8692,
+      8703,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8991,
+      8998,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9461,
+      9467,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9623,
+      9681,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      9783,
+      9786,
+      "PRZECINEK_ANI"
+     ],
+     [
+      9979,
+      9991,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      10073,
+      10085,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      10278,
+      10289,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ]
+   },
+   "warm_1k_ms": {
+    "n": 30,
+    "p50": 32.0,
+    "p95": 38.3,
+    "mean": 32.6,
+    "min": 28.9,
+    "max": 39.9
+   },
+   "warm_10k_ms": {
+    "n": 30,
+    "p50": 268.0,
+    "p95": 289.4,
+    "mean": 270.1,
+    "min": 258.6,
+    "max": 290.0
+   },
+   "memory_after_warm_mib": {
+    "VmHWM": 269.8,
+    "VmRSS": 268.0
+   }
+  },
+  {
+   "option": "http-minimal",
+   "jvm_flags": [
+    "-Xmx256m",
+    "-XX:+UseSerialGC"
+   ],
+   "cold_ready_ms": {
+    "n": 30,
+    "p50": 718.5,
+    "p95": 780.5,
+    "mean": 725.4,
+    "min": 669.1,
+    "max": 790.5
+   },
+   "cold_first_result_1k_ms": {
+    "n": 30,
+    "p50": 2320.2,
+    "p95": 2504.1,
+    "mean": 2338.1,
+    "min": 2229.4,
+    "max": 2518.3
+   },
+   "issues": {
+    "1k": 6,
+    "10k": 49
+   },
+   "issue_list": {
+    "1k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ],
+    "10k": [
+     [
+      97,
+      103,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      259,
+      317,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      419,
+      422,
+      "PRZECINEK_ANI"
+     ],
+     [
+      615,
+      627,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      709,
+      721,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      914,
+      925,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1658,
+      1664,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      1820,
+      1878,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      1980,
+      1983,
+      "PRZECINEK_ANI"
+     ],
+     [
+      2176,
+      2188,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      2270,
+      2282,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      2475,
+      2486,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      2892,
+      2905,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3076,
+      3083,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3223,
+      3229,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      3385,
+      3443,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      3545,
+      3548,
+      "PRZECINEK_ANI"
+     ],
+     [
+      3741,
+      3753,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      3835,
+      3847,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      4040,
+      4051,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4566,
+      4579,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      4765,
+      4771,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      4927,
+      4985,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      5087,
+      5090,
+      "PRZECINEK_ANI"
+     ],
+     [
+      5283,
+      5295,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      5377,
+      5389,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      5582,
+      5593,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      5851,
+      5864,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6035,
+      6042,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6345,
+      6351,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      6507,
+      6565,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      6667,
+      6670,
+      "PRZECINEK_ANI"
+     ],
+     [
+      6863,
+      6875,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      6957,
+      6969,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      7162,
+      7173,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      7528,
+      7541,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      7875,
+      7881,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8037,
+      8095,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      8197,
+      8200,
+      "PRZECINEK_ANI"
+     ],
+     [
+      8393,
+      8405,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      8487,
+      8499,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      8692,
+      8703,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      8991,
+      8998,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9461,
+      9467,
+      "BRAK_PRZECINKA_ZE"
+     ],
+     [
+      9623,
+      9681,
+      "ZDANIA_ZLOZONE"
+     ],
+     [
+      9783,
+      9786,
+      "PRZECINEK_ANI"
+     ],
+     [
+      9979,
+      9991,
+      "BRAK_PRZECINKA_SPOJNIK_PROSTY"
+     ],
+     [
+      10073,
+      10085,
+      "COFANIE_PRZECINKA"
+     ],
+     [
+      10278,
+      10289,
+      "BRAK_PRZECINKA_ZE"
+     ]
+    ]
+   },
+   "warm_1k_ms": {
+    "n": 30,
+    "p50": 163.8,
+    "p95": 197.3,
+    "mean": 171.4,
+    "min": 149.7,
+    "max": 302.2
+   },
+   "warm_10k_ms": {
+    "n": 30,
+    "p50": 424.3,
+    "p95": 544.6,
+    "mean": 447.5,
+    "min": 407.0,
+    "max": 624.4
+   },
+   "memory_after_warm_mib": {
+    "VmHWM": 399.9,
+    "VmRSS": 397.1
+   }
+  }
+ ]
+}
