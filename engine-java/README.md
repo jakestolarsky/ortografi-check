@@ -10,7 +10,7 @@ real adapter output, the shared examples and the corpus fixtures against it.
 Requires Temurin 21 (measured with 21.0.12.1+1) and Maven 3.9.
 
 ```sh
-mvn test            # 89 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
+mvn test            # 98 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
 mvn package         # target/ortografi-engine-0.0.1-phase0.jar + target/lib/*.jar (engine JARs kept separate, LGPL)
 java -jar target/ortografi-engine-0.0.1-phase0.jar
 scripts/jlink-runtime.sh --check      # pinned runtime-modules.txt still covers jdeps output
@@ -46,11 +46,18 @@ only (`System.out` is redirected to stderr at startup); stderr carries logs and 
   `other`) from `CategoryMapper`, the only place mapping happens (per-rule overrides for
   `SKROTY_Z_KROPKA`, `JEDNOSTKA_LICZBA` and the inflection entries of `PL_SIMPLE_REPLACE`); `engineCategory` is
   LanguageTool's category ID.
-- **Insertions are zero-length** (`start == end`): when every replacement only inserts text at
-  one point at a word boundary, the range is that point and the replacements are the inserted
-  text (`"Wiem że"` 0..7 → `"Wiem, że"` becomes 4..4 → `","`). Insertions inside a word
-  (`Poszłem` → `Poszedłem`, `wogóle` → `w ogóle`) stay whole-word replacements
-  (`InsertionNarrowingChecker`).
+- **Punctuation edits are minimal** (`MinimalEditChecker`): the common prefix and suffix of
+  the engine's span and its replacement are trimmed.
+  - A missing comma is zero-length (`start == end`), e.g. `"Wiem że"` 0..7 → `"Wiem, że"`
+    becomes 4..4 → `","`.
+  - An extra comma covers only the comma with `""`; the following space stays (`"chleb, i"`
+    13..16 → `" i"` becomes 13..14 → `""`). This is the corpus convention (FORMAT.md,
+    "Deletion ranges").
+  - A missing space after punctuation is a zero-length `" "` insertion.
+  - Only punctuation is removed: spacing fixes (`" ,"` → `","`, `"  "` → `" "`) keep a range
+    that includes the space.
+  - Letter and digit edits and anything inside a word (`Poszłem` → `Poszedłem`,
+    `wogóle` → `w ogóle`, `email` → `e-mail`) keep the whole-word range.
 - `message` is **plain text**: LanguageTool's `<suggestion>x</suggestion>` becomes `„x”`
   (`PlainMessage`). The UI must still never render it as HTML.
 - A `check` needs `docVersion` and `settingsVersion` as integers ≥ 0. If either is missing or
@@ -78,6 +85,7 @@ Known gaps: response-time limit/cancellation, message-size limit at the reader.
 ## Changes in phase 1 (for Desktop: Rust side and contracts/)
 
 - Zero-length insertion ranges (`start == end`) now occur in results. Insert at `start`.
+- Extra-comma deletions are reported as exactly the comma (`end - start == 1`) with `""`.
 - `message` no longer contains `<suggestion>` markup.
 - Errors answering a check now carry `docVersion` + `settingsVersion`.
 - Stricter: a `check` with a missing, null, string, fractional or negative version is now
