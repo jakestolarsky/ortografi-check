@@ -10,7 +10,7 @@ validates real adapter output, the shared examples and the corpus fixtures again
 Requires Temurin 21 (measured with 21.0.12.1+1) and Maven 3.9.
 
 ```sh
-mvn test            # 107 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
+mvn test            # 113 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
 mvn package         # target/ortografi-engine-0.0.1-phase0.jar + target/lib/*.jar (engine JARs kept separate, LGPL)
 java -jar target/ortografi-engine-0.0.1-phase0.jar
 scripts/jlink-runtime.sh --check      # runtime-modules.txt (+ runtime-modules-excluded.txt) covers jdeps output
@@ -99,6 +99,10 @@ only (`System.out` is redirected to stderr at startup); stderr carries logs and 
   spelling rule can return dozens (about 60 for `rzaba`); the engine keeps the first 5 in
   LanguageTool's order. Comma insertions and deletions have one replacement and are unaffected.
   A true fix LT ranks lower is no longer sent (e.g. `żułwa` → `żółwia`).
+- **"nie" with verbs first** (`NieVerbFirst`, before the cap): for a misspelled token starting
+  with `nie`, a suggestion `nie <word>` whose word LT's Polish tagger reads as a verb
+  (`verb:fin`, `verb:praet`, `verb:inf`, …; not participles or gerunds) moves to the top
+  (`Nielubię` → `Nie lubię`). All other suggestions keep LT's order.
 - `message` is **plain text**: LanguageTool's `<suggestion>x</suggestion>` becomes `„x”`
   (`PlainMessage`). The UI must still never render it as HTML.
 - A `check` needs `docVersion` and `settingsVersion` as integers ≥ 0. If either is missing or

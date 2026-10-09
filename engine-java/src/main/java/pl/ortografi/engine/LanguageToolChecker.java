@@ -18,11 +18,13 @@ public final class LanguageToolChecker implements Checker {
   private static final String LANGUAGE = "pl-PL";
   private final JLanguageTool lt;
   private final PossessiveFromName.Lexicon names;
+  private final java.util.function.Predicate<String> isVerb;
 
   public LanguageToolChecker() {
     Language polish = Languages.getLanguageForShortCode(LANGUAGE);
     this.lt = new JLanguageTool(polish);
     lt.addRule(new SubjectVerbCommaRule(JLanguageTool.getMessageBundle(polish)));
+    this.isVerb = w -> readings(polish, w).stream().anyMatch(r -> NieVerbFirst.isVerbTag(r.getPOSTag()));
     this.names = new PossessiveFromName.Lexicon() {
       @Override
       public boolean isPersonalName(String name, String gender) {
@@ -82,7 +84,10 @@ public final class LanguageToolChecker implements Checker {
               engineCategory,
               issueType,
               PlainMessage.of(m.getMessage()),
-              SuggestionCap.cap(m.getSuggestedReplacements())));
+              SuggestionCap.cap(
+                  m.getRule().getId().equals("MORFOLOGIK_RULE_PL_PL")
+                      ? NieVerbFirst.reorder(covered, m.getSuggestedReplacements(), isVerb)
+                      : m.getSuggestedReplacements())));
     }
     return issues;
   }
