@@ -432,6 +432,23 @@ fn retry_sets_starting_synchronously_and_queues_the_next_check() {
 }
 
 #[test]
+fn retry_is_a_no_op_unless_unavailable() {
+    let log = format!("{}/spawns", tempdir());
+    let (s, seen) = recording(cfg_logged(&log));
+    assert_eq!(s.check(check("a", 1, 1, "CRASH")).error_code(), Some("ENGINE_UNAVAILABLE"));
+    assert!(wait_for(&s, EngineState::Ready));
+    take(&seen);
+    s.retry(); // ready: no state change, no spawn, budgets untouched
+    std::thread::sleep(Duration::from_millis(100));
+    assert!(take(&seen).is_empty());
+    assert_eq!(s.state(), EngineState::Ready);
+    assert_eq!(spawns(&log), 2);
+    // Crash budget was not cleared by retry(): the second crash makes it unavailable.
+    assert_eq!(s.check(check("b", 2, 1, "CRASH")).error_code(), Some("ENGINE_UNAVAILABLE"));
+    assert_eq!(s.state(), EngineState::Unavailable);
+}
+
+#[test]
 fn reset_session_drops_the_waiting_check() {
     let log = format!("{}/spawns", tempdir());
     let s = Arc::new(Supervisor::new(cfg_logged(&log)));
