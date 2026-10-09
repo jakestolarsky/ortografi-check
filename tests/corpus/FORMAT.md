@@ -255,8 +255,8 @@ The JSONL file stays the single source of truth; markup is only an input aid.
 * **Result input: protocol v1** (phase 3): `score.mjs` and `validate.mjs --engine` accept
   `contracts/v1` messages (`result`, `error`) next to corpus result lines; see
   "Protocol v1 input". Scoring rules unchanged (still 1.2).
-* **Phase 3 data**: 50 dev (`phase3-dev.jsonl`, 40 grammar errors + 10 clean grammar
-  controls) and 10 held-out (`heldout/phase3-heldout.jsonl`, 7 errors + 3 clean) grammar
+* **Phase 3 data**: 50 dev (`phase3-dev.jsonl`, 39 grammar errors + 11 clean grammar
+  controls; p3-0022 became a clean control in review) and 10 held-out (`heldout/phase3-heldout.jsonl`, 7 errors + 3 clean) grammar
   examples, added because grammar recall was the weakest category in Engine's PR #18 dev
   run (41.2%). New subcategories: `grammar.case_government`, `grammar.participle`.
 
