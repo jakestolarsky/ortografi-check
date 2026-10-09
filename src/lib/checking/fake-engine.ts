@@ -1,4 +1,5 @@
-import type { CheckRequest, CheckResponse, Engine, ErrorCode, Issue } from './contract';
+import type { CheckRequest, Issue } from '$lib/protocol';
+import type { CheckResponse, Engine, ErrorCode } from './engine';
 
 /**
  * Controlled fake engine for tests and `vite dev` only (PLAN s.10: fakes control timing and

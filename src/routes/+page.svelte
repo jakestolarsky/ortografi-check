@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { appTitle } from '$lib/app-info';
   import { CheckSession, type CheckState } from '$lib/checking/session';
-  import type { Engine } from '$lib/checking/contract';
+  import type { Engine } from '$lib/checking/engine';
   import { createProseEditor, type ProseEditor } from '$lib/editor/prose-editor';
 
   let host: HTMLDivElement;

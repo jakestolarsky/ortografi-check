@@ -1,5 +1,6 @@
-import type { CheckResponse, Engine, ErrorCode, Issue } from './contract';
-import { PROTOCOL } from './contract';
+import type { Issue } from '$lib/protocol';
+import type { CheckResponse, Engine, ErrorCode } from './engine';
+import { PROTOCOL } from './engine';
 
 export type CheckStatus = 'idle' | 'checking' | 'complete' | 'stale' | 'incomplete';
 

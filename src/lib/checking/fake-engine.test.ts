@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { FakeEngine } from './fake-engine';
-import type { CheckRequest, CheckResult } from './contract';
+import type { CheckRequest, CheckResult } from '$lib/protocol';
 
 const req = (text: string, docVersion = 1): CheckRequest =>
   ({ protocol: 1, type: 'check', id: 'c1', docVersion, settingsVersion: 1, text });

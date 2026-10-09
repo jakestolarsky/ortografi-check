@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CheckSession } from './session';
-import type { CheckRequest, CheckResponse, Engine, Issue } from './contract';
+import type { CheckRequest, Issue } from '$lib/protocol';
+import type { CheckResponse, Engine } from './engine';
 
 /** Controlled engine: holds requests until the test releases them, in any order. */
 class ControlledEngine implements Engine {

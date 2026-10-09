@@ -1,7 +1,7 @@
 import { Annotation, EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType, keymap, type DecorationSet } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import type { Issue } from '$lib/checking/contract';
+import type { Issue } from '$lib/protocol';
 import type { CheckSession } from '$lib/checking/session';
 
 /** Marks transactions whose text the session already knows (applied through CheckSession). */
