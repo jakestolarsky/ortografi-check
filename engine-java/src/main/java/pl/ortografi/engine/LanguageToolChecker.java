@@ -19,10 +19,23 @@ public final class LanguageToolChecker implements Checker {
   private final JLanguageTool lt;
   private final PossessiveFromName.Lexicon names;
 
+  /**
+   * Our rules that ship switched off. ORTOGRAFI_NUM_COLLECTIVE_5PLUS ("pięć dzieci" -> "pięcioro")
+   * is pending OrBity's decision: normative, but "pięć dzieci" is common in everyday writing.
+   * Remove the id here to switch it on.
+   */
+  static final java.util.Set<String> OFF_BY_DEFAULT = java.util.Set.of("ORTOGRAFI_NUM_COLLECTIVE_5PLUS");
+
   public LanguageToolChecker() {
+    this(OFF_BY_DEFAULT);
+  }
+
+  LanguageToolChecker(java.util.Set<String> disabledOwnRules) {
     Language polish = Languages.getLanguageForShortCode(LANGUAGE);
     this.lt = new JLanguageTool(polish);
     lt.addRule(new SubjectVerbCommaRule(JLanguageTool.getMessageBundle(polish)));
+    for (org.languagetool.rules.patterns.AbstractPatternRule r : ownRules(polish, NUMERAL_RULES)) lt.addRule(r);
+    for (String id : disabledOwnRules) lt.disableRule(id);
     this.names = new PossessiveFromName.Lexicon() {
       @Override
       public boolean isPersonalName(String name, String gender) {
@@ -34,6 +47,18 @@ public final class LanguageToolChecker implements Checker {
         return readings(polish, form).stream().anyMatch(r -> lemma.equals(r.getLemma()));
       }
     };
+  }
+
+  /** Our own rules in LanguageTool's XML format (category GRAMMAR); see NumeralRulesTest. */
+  static final String NUMERAL_RULES = "/pl/ortografi/engine/rules/numerals.xml";
+
+  static List<org.languagetool.rules.patterns.AbstractPatternRule> ownRules(Language polish, String resource) {
+    try (java.io.InputStream in = LanguageToolChecker.class.getResourceAsStream(resource)) {
+      if (in == null) throw new IllegalStateException("missing " + resource);
+      return new org.languagetool.rules.patterns.PatternRuleLoader().getRules(in, resource, polish);
+    } catch (IOException e) {
+      throw new java.io.UncheckedIOException(e);
+    }
   }
 
   private static List<AnalyzedToken> readings(Language polish, String word) {
@@ -84,7 +109,28 @@ public final class LanguageToolChecker implements Checker {
               PlainMessage.of(m.getMessage()),
               List.copyOf(m.getSuggestedReplacements())));
     }
-    return issues;
+    return oneIssuePerNumeralPhrase(issues, text);
+  }
+
+  /**
+   * When a numeral rule and the numeral-subject verb rule hit the same phrase (no sentence end
+   * between them), keep only the numeral issue: one error, one issue. Fixing the numeral and
+   * re-checking still reports the verb if it is wrong.
+   */
+  static List<Issue> oneIssuePerNumeralPhrase(List<Issue> issues, String text) {
+    List<Issue> numerals = issues.stream()
+        .filter(i -> i.ruleId().startsWith("ORTOGRAFI_NUM_") && !i.ruleId().equals("ORTOGRAFI_NUM_VERB_PL"))
+        .toList();
+    if (numerals.isEmpty()) return issues;
+    List<Issue> out = new ArrayList<>(issues.size());
+    for (Issue i : issues) {
+      boolean samePhrase = i.ruleId().equals("ORTOGRAFI_NUM_VERB_PL") && numerals.stream().anyMatch(n -> {
+        int from = Math.min(n.end(), i.end()), to = Math.max(n.start(), i.start());
+        return from > to || !text.substring(from, to).matches("(?s).*[.!?;].*");
+      });
+      if (!samePhrase) out.add(i);
+    }
+    return out;
   }
 
   @Override

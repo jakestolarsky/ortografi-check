@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Ortografi's own Polish rules: numerals with nouns and verbs (LanguageTool XML rule format,
+  loaded by LanguageToolChecker). Category GRAMMAR, so CategoryMapper reports them as grammar.
+  Conditions are on morphosyntactic tags (NKJP tagset: m1 masculine personal, m2/m3 other
+  masculine, f, n1 neuter taking collective numerals, n2 other neuter, p1/p2/p3 pluralia tantum).
+  Tests: NumeralRulesTest. When a numeral rule and ORTOGRAFI_NUM_VERB_PL hit the same phrase,
+  LanguageToolChecker keeps only the numeral issue.
+-->
+<!DOCTYPE rules [
+  <!-- Intransitive verbs that often take a numeral subject after them. Reflexive verbs ("się")
+       are covered by tags instead. -->
+  <!ENTITY intransitive "przyjść|przyjechać|przybyć|przylecieć|przypłynąć|dotrzeć|dojść|dojechać|wejść|wyjść|wyjechać|odejść|odjechać|wrócić|powrócić|uciec|zginąć|umrzeć|zachorować|wystartować|wystąpić|pozostać|zostać|mieszkać|pracować|żyć|stać|siedzieć|leżeć|czekać|uczestniczyć|głosować|zagłosować|startować|przyjeżdżać|przychodzić|wracać|ginąć">
+  <!-- Measure and time nouns: "pięć lat temu przyjechali" has no numeral subject. -->
+  <!ENTITY measure "rok|lato|godzina|minuta|sekunda|dzień|doba|tydzień|miesiąc|raz|wiek|kilometr|metr|złoty|procent|tysiąc|milion|kilogram|litr|grosz|stopień">
+  <!ENTITY twotofour "dwa|trzy|cztery|oba|obydwa">
+]>
+<rules lang="pl">
+  <category id="GRAMMAR" name="Błędy odmiany">
+
+    <!-- "dwa sukienki": dwa/oba with a noun that is only feminine. -->
+    <rulegroup id="ORTOGRAFI_NUM_DWA_F" name="„dwa” z rzeczownikiem rodzaju żeńskiego (dwie)">
+      <rule>
+        <pattern>
+          <marker><token postag="num:pl:nom.acc.voc:m2.m3.n2:congr" regexp="yes">dwa|oba|obydwa<exception scope="previous" postag="prep:.*" postag_regexp="yes"/></token></marker>
+          <token min="0" max="2" postag="adj:pl:(nom|acc).*[.:]f[.:].*" postag_regexp="yes"/>
+          <token postag="subst:pl:(nom|acc):f" postag_regexp="yes"><exception postag="subst:pl:(nom|acc):(m1|m2|m3|n1|n2|p1|p2|p3)" postag_regexp="yes"/></token>
+        </pattern>
+        <message>Liczebnik z rzeczownikiem żeńskim „\3”: <suggestion><match no="1" postag="num:pl:nom.acc.voc:f:congr"/></suggestion>.</message>
+        <example correction="dwie">Kupiłam <marker>dwa</marker> sukienki.</example>
+        <example>Kupiłam dwie sukienki.</example>
+      </rule>
+    </rulegroup>
+
+    <!-- "dwie samochody": dwie/obie with a noun that is not feminine. -->
+    <rulegroup id="ORTOGRAFI_NUM_DWIE_NF" name="„dwie” z rzeczownikiem nieżeńskim (dwa)">
+      <rule>
+        <pattern>
+          <marker><token postag="num:pl:nom.acc.voc:f:congr"><exception scope="previous" postag="prep:.*" postag_regexp="yes"/></token></marker>
+          <token min="0" max="2" postag="adj:pl:(nom|acc).*[.:](m2|m3|n2)[.:].*" postag_regexp="yes"/>
+          <token postag="subst:pl:(nom|acc):(m2|m3|n2)" postag_regexp="yes"><exception postag="subst:pl:(nom|acc):f" postag_regexp="yes"/></token>
+        </pattern>
+        <message>Liczebnik z rzeczownikiem „\3” (nie żeńskim): <suggestion><match no="1" postag="num:pl:nom.acc.voc:m2.m3.n2:congr"/></suggestion>.</message>
+        <example correction="dwa">Stały tam <marker>dwie</marker> samochody.</example>
+        <example>Stały tam dwa samochody.</example>
+      </rule>
+    </rulegroup>
+
+    <!-- "dwa żołnierze": 2-4 with a masculine-personal nominative take dwaj/trzej/czterej/obaj. -->
+    <rulegroup id="ORTOGRAFI_NUM_M1_NOM" name="Liczebnik 2–4 z rzeczownikiem męskoosobowym (dwaj)">
+      <rule>
+        <pattern>
+          <marker><token postag="num:pl:nom.acc.voc:.*:congr" postag_regexp="yes" inflected="yes" regexp="yes">&twotofour;<exception scope="previous" postag="prep:.*" postag_regexp="yes"/></token></marker>
+          <token min="0" max="2" postag="adj:pl:nom.*[.:]m1[.:].*" postag_regexp="yes"/>
+          <token postag="subst:pl:nom:m1" postag_regexp="yes"><exception postag="subst:pl:(nom|acc):(m2|m3|f|n1|n2|p1|p2|p3)" postag_regexp="yes"/></token>
+        </pattern>
+        <message>Liczebnik z rzeczownikiem męskoosobowym „\3”: <suggestion><match no="1" postag="num:pl:nom.voc:m1:congr"/></suggestion>.</message>
+        <example correction="Dwaj"><marker>Dwa</marker> żołnierze stali przy bramie.</example>
+        <example>Dwaj żołnierze stali przy bramie.</example>
+      </rule>
+    </rulegroup>
+
+    <!-- "cztery talerzy": 2-4 (not masculine personal) take the nominative/accusative plural. -->
+    <rulegroup id="ORTOGRAFI_NUM_GEN_AFTER_2_4" name="Po liczebniku 2–4 mianownik, nie dopełniacz">
+      <rule>
+        <pattern>
+          <token postag="num:pl:nom.acc.voc:(m2.m3.n2|f|m2.m3.n2.f|m2.m3.f.n2):congr" postag_regexp="yes"><exception scope="previous" postag="prep:.*" postag_regexp="yes"/></token>
+          <token min="0" max="2" postag="adj:pl:(nom|acc).*" postag_regexp="yes"/>
+          <marker><token postag="subst:pl:gen:(m2|m3|f|n2)" postag_regexp="yes"><exception postag="subst:pl:(nom|acc):.*|subst:pl:gen:(m1|n1|p1|p2)|subst:sg:.*" postag_regexp="yes"/><exception inflected="yes" regexp="yes">&measure;</exception></token></marker>
+        </pattern>
+        <message>Po liczebniku „\1” rzeczownik w mianowniku: <suggestion><match no="3" postag="subst:pl:gen:(.*)" postag_regexp="yes" postag_replace="subst:pl:nom:$1"/></suggestion>.</message>
+        <example correction="talerze">Stoją cztery <marker>talerzy</marker>.</example>
+        <example>Stoją cztery talerze.</example>
+      </rule>
+    </rulegroup>
+
+    <!-- "trzy dzieci", "oba rodzice": nouns that take a collective numeral (n1, p2; p1 with oba). -->
+    <rulegroup id="ORTOGRAFI_NUM_COLLECTIVE" name="Liczebnik zbiorowy (dwoje, oboje)">
+      <rule>
+        <pattern>
+          <marker><token postag="num:pl:nom.acc.voc:(m2.m3.n2|m2.m3.n2.f|m2.m3.f.n2|f):congr" postag_regexp="yes"><exception scope="previous" postag="prep:.*" postag_regexp="yes"/></token></marker>
+          <token min="0" max="2" postag="adj:pl:.*" postag_regexp="yes"/>
+          <token postag="subst:pl:(nom|acc|gen):(n1|p2)" postag_regexp="yes"><exception postag="subst:pl:.*:(m1|m2|m3|f|n2|p1|p3)" postag_regexp="yes"/></token>
+        </pattern>
+        <message>Z rzeczownikiem „\3” używamy liczebnika zbiorowego: <suggestion><match no="1" postag="num:pl:nom.acc.voc:n1.p1.p2:rec"/></suggestion>.</message>
+        <example correction="troje">Mają <marker>trzy</marker> dzieci.</example>
+        <example>Mają troje dzieci.</example>
+      </rule>
+      <rule>
+        <pattern>
+          <marker><token postag="num:pl:nom.acc.voc:(m2.m3.n2|f):congr" postag_regexp="yes" inflected="yes">oba</token></marker>
+          <token postag="subst:pl:nom:p1" postag_regexp="yes"/>
+        </pattern>
+        <message>Z rzeczownikiem „\2” używamy liczebnika zbiorowego: <suggestion><match no="1" postag="num:pl:nom.acc.voc:n1.p1.p2:rec"/></suggestion>.</message>
+        <example correction="Oboje"><marker>Oba</marker> rodzice przyszli.</example>
+        <example>Oboje rodzice przyszli.</example>
+      </rule>
+    </rulegroup>
+
+    <!-- "pięć dzieci": 5+ with nouns that take a collective numeral. Switched off by default
+         (LanguageToolChecker.OFF_BY_DEFAULT), pending OrBity's decision. -->
+    <rulegroup id="ORTOGRAFI_NUM_COLLECTIVE_5PLUS" name="Liczebnik zbiorowy od pięciu (pięcioro)">
+      <rule>
+        <pattern>
+          <marker><token postag="num:pl:nom.acc.voc:m2.m3.f.n2:rec" postag_regexp="yes"><exception scope="previous" postag="prep:.*" postag_regexp="yes"/></token></marker>
+          <token min="0" max="2" postag="adj:pl:.*" postag_regexp="yes"/>
+          <token postag="subst:pl:(nom|acc|gen):(n1|p2)" postag_regexp="yes"><exception postag="subst:pl:.*:(m1|m2|m3|f|n2|p1|p3)" postag_regexp="yes"/></token>
+        </pattern>
+        <message>Z rzeczownikiem „\3” używamy liczebnika zbiorowego: <suggestion><match no="1" postag="num:pl:nom.acc.voc:n1.p1.p2:rec"/></suggestion>.</message>
+        <example correction="pięcioro">Mają <marker>pięć</marker> dzieci.</example>
+        <example>Mają pięcioro dzieci.</example>
+      </rule>
+    </rulegroup>
+
+    <!-- "pięć studentów": 5+ / kilka with a masculine-personal noun take the pięciu form. -->
+    <rulegroup id="ORTOGRAFI_NUM_M1" name="Liczebnik z rzeczownikiem męskoosobowym (pięciu)">
+      <rule>
+        <pattern>
+          <marker><token postag="num:pl:nom.acc.voc:m2.m3.f.n2:rec" postag_regexp="yes"><exception scope="previous" postag="prep:.*" postag_regexp="yes"/></token></marker>
+          <token min="0" max="2" postag="adj:pl:gen.*|pact:pl:gen.*" postag_regexp="yes"/>
+          <token postag="subst:pl:gen:m1" postag_regexp="yes"><exception postag="subst:pl:gen:(m2|m3|f|n1|n2|p1|p2|p3)" postag_regexp="yes"/></token>
+          <token negate_pos="yes" postag="subst:pl:gen.*|adj:pl:gen.*|pact:pl:gen.*" postag_regexp="yes"/>
+        </pattern>
+        <message>Liczebnik z rzeczownikiem męskoosobowym „\3”: <suggestion><match no="1" postag="num:pl:gen.dat.inst.loc:.*:congr" postag_regexp="yes"/></suggestion>.</message>
+        <example correction="Pięciu"><marker>Pięć</marker> studentów zdało egzamin.</example>
+        <example>Pięciu studentów zdało egzamin.</example>
+        <example>Żyje tu pięć innych gatunków ptaków.</example>
+      </rule>
+    </rulegroup>
+
+    <!-- "przyszło pięciu koleżanek": the pięciu form with a non-personal noun as the subject. -->
+    <rulegroup id="ORTOGRAFI_NUM_M1_REVERSE" name="„pięciu” z rzeczownikiem niemęskoosobowym (pięć)">
+      <rule>
+        <pattern>
+          <token postag="verb:praet:sg:n1.n2:.*" postag_regexp="yes" inflected="yes" regexp="yes">&intransitive;</token>
+          <marker>
+            <token postag="num:pl:gen.dat.inst.loc:.*:congr" postag_regexp="yes"><exception inflected="yes" regexp="yes">&twotofour;|jeden</exception></token>
+          </marker>
+          <token min="0" max="2" postag="adj:pl:gen.*" postag_regexp="yes"/>
+          <token postag="subst:pl:gen:(m2|m3|f|n2)" postag_regexp="yes"><exception postag="subst:pl:gen:(m1|n1|p1|p2)" postag_regexp="yes"/><exception inflected="yes" regexp="yes">&measure;</exception></token>
+        </pattern>
+        <message>Z rzeczownikiem „\4” (nie męskoosobowym): <suggestion><match no="2" postag="num:pl:nom.acc.voc:m2.m3.f.n2:rec"/></suggestion>.</message>
+        <example correction="pięć">Przyszło <marker>pięciu</marker> koleżanek.</example>
+        <example>Przyszło pięć koleżanek.</example>
+      </rule>
+    </rulegroup>
+
+    <!-- "pięć osób przyszli": a numeral subject (5+, kilka, pięciu + m1) takes a neuter singular past verb. -->
+    <rulegroup id="ORTOGRAFI_NUM_VERB_PL" name="Orzeczenie przy podmiocie z liczebnikiem (przyszło)">
+      <rule>
+        <pattern>
+          <token postag="SENT_START|adv.*|conj" postag_regexp="yes"/>
+          <token postag="num:pl:(nom|gen).*:(rec|congr)" postag_regexp="yes"><exception inflected="yes" regexp="yes">&twotofour;|jeden</exception></token>
+          <token min="0" max="2" postag="adj:pl:gen.*" postag_regexp="yes"/>
+          <token postag="subst:pl:gen:.*" postag_regexp="yes"><exception inflected="yes" regexp="yes">&measure;</exception></token>
+          <token min="0" max="2" postag="adv.*|prep:.*|subst:.*:(acc|loc|inst):.*|qub" postag_regexp="yes"/>
+          <marker>
+            <token postag="verb:praet:pl:.*" postag_regexp="yes"><exception postag="verb:praet:sg:.*" postag_regexp="yes"/></token>
+          </marker>
+        </pattern>
+        <message>Przy podmiocie „\2 \4” orzeczenie ma formę nijaką liczby pojedynczej: <suggestion><match no="6" postag="verb:praet:sg:n1.n2:ter:.*" postag_regexp="yes"/></suggestion>.</message>
+        <example correction="przyszło">Pięć osób <marker>przyszli</marker> na spotkanie.</example>
+        <example>Pięć osób przyszło na spotkanie.</example>
+      </rule>
+      <rule>
+        <pattern>
+          <marker>
+            <token postag="verb:praet:pl:.*" postag_regexp="yes" inflected="yes" regexp="yes">&intransitive;</token>
+          </marker>
+          <token postag="num:pl:nom.acc.voc:.*:rec" postag_regexp="yes"/>
+          <token min="0" max="2" postag="adj:pl:gen.*" postag_regexp="yes"/>
+          <token postag="subst:pl:gen:.*" postag_regexp="yes"><exception inflected="yes" regexp="yes">&measure;</exception></token>
+        </pattern>
+        <message>Przy podmiocie „\2 \4” orzeczenie ma formę nijaką liczby pojedynczej: <suggestion><match no="1" postag="verb:praet:sg:n1.n2:ter:.*" postag_regexp="yes"/></suggestion>.</message>
+        <example correction="przyszło">Na spotkanie <marker>przyszli</marker> pięć osób.</example>
+        <example>Na spotkanie przyszło pięć osób.</example>
+      </rule>
+      <rule>
+        <pattern>
+          <marker>
+            <token postag="verb:praet:pl:.*" postag_regexp="yes"/>
+          </marker>
+          <token>się</token>
+          <token postag="num:pl:nom.acc.voc:.*:rec" postag_regexp="yes"/>
+          <token min="0" max="2" postag="adj:pl:gen.*" postag_regexp="yes"/>
+          <token postag="subst:pl:gen:.*" postag_regexp="yes"><exception inflected="yes" regexp="yes">&measure;</exception></token>
+        </pattern>
+        <message>Przy podmiocie „\3 \5” orzeczenie ma formę nijaką liczby pojedynczej: <suggestion><match no="1" postag="verb:praet:sg:n1.n2:ter:.*" postag_regexp="yes"/></suggestion>.</message>
+        <example correction="zapisało">Do chóru <marker>zapisali</marker> się sześć dziewczynek.</example>
+        <example>Do chóru zapisało się sześć dziewczynek.</example>
+      </rule>
+    </rulegroup>
+  </category>
+</rules>
