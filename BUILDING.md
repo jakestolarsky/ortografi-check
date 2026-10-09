@@ -64,7 +64,9 @@ and rewrites the runtime's rpaths (breaking `engine-manifest.json`'s sha256 sums
 linuxdeploy skip the JVM libraries (`LINUXDEPLOY_EXCLUDED_LIBRARIES`), puts the untouched staged
 engine back into the AppDir, checks every file against the manifest, and repacks with
 linuxdeploy-plugin-appimage. Needs `dpkg-dev` (the GTK plugin calls `dpkg-architecture`);
-`APPIMAGE_EXTRACT_AND_RUN=1` is set so it works without FUSE. The app starts `engine/runtime/bin/java -jar engine/ortografi-engine.jar` from its resource
+`APPIMAGE_EXTRACT_AND_RUN=1` is set so it works without FUSE.
+
+The app starts `engine/runtime/bin/java -jar engine/ortografi-engine.jar` from its resource
 directory; nothing has to be installed on the user's machine. The engine is per OS/arch, so build
 the macOS ARM and Intel apps on (or for) each architecture separately.
 
