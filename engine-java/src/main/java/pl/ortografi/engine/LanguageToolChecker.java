@@ -20,6 +20,10 @@ public final class LanguageToolChecker implements Checker {
   private final PossessiveFromName.Lexicon names;
   private final SpellingNoiseFilter.Speller speller;
 
+  /** Speller lookups made by the spelling filters (for latency measurements and tests). */
+  static final java.util.concurrent.atomic.AtomicLong KNOWN_CALLS = new java.util.concurrent.atomic.AtomicLong();
+  static final java.util.concurrent.atomic.AtomicLong SUGGEST_CALLS = new java.util.concurrent.atomic.AtomicLong();
+
   public LanguageToolChecker() {
     Language polish = Languages.getLanguageForShortCode(LANGUAGE);
     this.lt = new JLanguageTool(polish);
@@ -43,6 +47,7 @@ public final class LanguageToolChecker implements Checker {
       @Override
       public boolean known(String word) {
         try {
+          KNOWN_CALLS.incrementAndGet();
           return !rule.isMisspelled(word);
         } catch (IOException e) {
           return false;
@@ -52,6 +57,7 @@ public final class LanguageToolChecker implements Checker {
       @Override
       public List<String> suggest(String word) {
         try {
+          SUGGEST_CALLS.incrementAndGet();
           return rule.getSpellingSuggestions(word);
         } catch (IOException e) {
           return List.of();
@@ -85,13 +91,14 @@ public final class LanguageToolChecker implements Checker {
   public List<Issue> check(String text) throws IOException {
     List<RuleMatch> matches = lt.check(text);
     List<Issue> issues = new ArrayList<>(matches.size());
+    SpellingNoiseFilter.Speller cache = SpellingNoiseFilter.perRequestCache(speller, SpellingNoiseFilter.Budget.forText(text.length(), System::nanoTime));
     List<int[]> spelling = matches.stream().filter(m -> m.getRule().getId().equals(SpellingNoiseFilter.RULE))
         .map(m -> new int[] {m.getFromPos(), m.getToPos()}).toList();
     for (RuleMatch m : matches) {
       String covered = text.substring(m.getFromPos(), m.getToPos());
       if (m.getRule().getId().equals(SpellingNoiseFilter.RULE)) {
         List<int[]> others = spelling.stream().filter(r -> r[0] != m.getFromPos()).toList();
-        if (SpellingNoiseFilter.reason(text, m.getFromPos(), m.getToPos(), m.getSuggestedReplacements(), others, speller) != null) {
+        if (SpellingNoiseFilter.reason(text, m.getFromPos(), m.getToPos(), m.getSuggestedReplacements(), others, cache) != null) {
           continue;
         }
       }

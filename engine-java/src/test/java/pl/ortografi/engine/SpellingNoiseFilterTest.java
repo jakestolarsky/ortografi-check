@@ -114,6 +114,64 @@ class SpellingNoiseFilterTest {
   }
 
   @Test
+  void requestCacheAsksTheSpellerOncePerWord() {
+    int[] known = {0}, suggest = {0};
+    SpellingNoiseFilter.Speller counting = new SpellingNoiseFilter.Speller() {
+      public boolean known(String w) { known[0]++; return FAKE.known(w); }
+      public List<String> suggest(String w) { suggest[0]++; return FAKE.suggest(w); }
+    };
+    SpellingNoiseFilter.Speller cache = SpellingNoiseFilter.perRequestCache(counting);
+    String text = "Spotkałem Xiaolonga, a potem znowu Xiaolonga.";
+    int first = text.indexOf("Xiaolonga"), second = text.lastIndexOf("Xiaolonga");
+    assertEquals("name", SpellingNoiseFilter.reason(text, first, first + 9, List.of(), List.of(), cache));
+    int k = known[0], sg = suggest[0];
+    assertTrue(k > 0, "the first occurrence asks the speller");
+    assertEquals("name", SpellingNoiseFilter.reason(text, second, second + 9, List.of(), List.of(), cache));
+    assertEquals(k, known[0], "the repeated word is answered from the cache");
+    assertEquals(sg, suggest[0]);
+    // Same answers as the uncached speller.
+    assertEquals(FAKE.suggest("Krakwoa"), cache.suggest("Krakwoa"));
+    assertEquals(FAKE.suggest("Krakwoa"), cache.suggest("Krakwoa"));
+    assertEquals(sg + 1, suggest[0], "suggestions are cached too");
+    assertEquals(FAKE.known("Krakowa"), cache.known("Krakowa"));
+  }
+
+  @Test
+  void spentLookupBudgetKeepsTheAlertLikeMain() {
+    long[] now = {0};
+    SpellingNoiseFilter.Speller budgeted = SpellingNoiseFilter.perRequestCache(FAKE, new SpellingNoiseFilter.Budget(() -> now[0], 1_000, 3));
+    String text = "Spotkałem Xiaolonga i Zhenyuana na konferencji.";
+    int x = text.indexOf("Xiaolonga"), z = text.indexOf("Zhenyuana");
+    assertEquals("name", SpellingNoiseFilter.reason(text, x, x + 9, List.of(), List.of(), budgeted));
+    // Lookups for Xiaolonga used up the budget of 3: the next unknown name is kept, as on main.
+    assertNull(SpellingNoiseFilter.reason(text, z, z + 9, List.of(), List.of(), budgeted));
+    // A cheap all-caps acronym needs no lookups and is still hidden; a long one is kept.
+    assertEquals("all-caps", SpellingNoiseFilter.reason("Jadę PKP.", 5, 8, List.of(), List.of(), budgeted));
+    assertNull(SpellingNoiseFilter.reason("Raport agencji QWZXKR.", 15, 21, List.of(), List.of(), budgeted));
+  }
+
+  @Test
+  void spentTimeBudgetKeepsTheAlertLikeMain() {
+    long[] now = {0};
+    SpellingNoiseFilter.Speller budgeted = SpellingNoiseFilter.perRequestCache(FAKE, new SpellingNoiseFilter.Budget(() -> now[0], 1_000, 1_000_000));
+    String text = "Spotkałem Xiaolonga i Zhenyuana na konferencji.";
+    int x = text.indexOf("Xiaolonga"), z = text.indexOf("Zhenyuana");
+    assertEquals("name", SpellingNoiseFilter.reason(text, x, x + 9, List.of(), List.of(), budgeted));
+    now[0] = 1_000; // the clock reached the deadline
+    assertNull(SpellingNoiseFilter.reason(text, z, z + 9, List.of(), List.of(), budgeted));
+  }
+
+  @Test
+  void budgetScalesWithTextLength() {
+    SpellingNoiseFilter.Budget small = SpellingNoiseFilter.Budget.forText(1_000, () -> 0L);
+    SpellingNoiseFilter.Budget large = SpellingNoiseFilter.Budget.forText(50_000, () -> 0L);
+    assertTrue(large.maxLookups() > small.maxLookups());
+    assertTrue(large.deadlineNanos() > small.deadlineNanos());
+    // Well inside Desktop's timeout of 3 s + 60 µs per UTF-16 unit.
+    assertTrue(large.deadlineNanos() < (3_000_000_000L + 60_000L * 50_000) / 4);
+  }
+
+  @Test
   void hyphenatedNamesAndCenturies() {
     assertEquals("hyphenated-name", reason("Miasto Neuville-Vitasse leży we Francji.", "Neuville-Vitasse", List.of()));
     assertEquals("hyphenated-name", reason("To XIV-wieczny kościół.", "XIV-wieczny", List.of()));

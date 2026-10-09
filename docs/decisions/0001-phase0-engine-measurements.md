@@ -490,3 +490,34 @@ extra alarms, so both filters now ask the speller (`MorfologikSpellerRule.isMiss
 | dev correct sentences flagged | 0/101 | 0/101 |
 
 Held-out was not run again.
+
+### Latency of the spelling filters (engine/speller-cache)
+
+Real adapter over stdin/stdout, JVM flags from `jvm-options.txt` (bundled-runtime flags, Temurin
+21.0.12.1 JDK). Per text a new process; cold = first check after `ready`, then 2 warm-ups and
+median / slowest of 5 timed checks. (a) 4,023 name-heavy words from the Wikipedia part of the
+post-1950 clean-prose set (30,199 UTF-16 units); (b) `pl-50k.txt` (49,357 units); (c) 1,000 distinct
+made-up capitalised names in 500 sentences (30,372 units; Desktop's limit 3 s + 60 µs/unit = 4,822 ms).
+
+| text | main | #34 d174c91 | this branch |
+|---|---:|---:|---:|
+| (a) median / slowest (cold) | 1,055 / 1,098 ms (2,472) | 1,185 / 1,262 ms (2,565) | 1,112 / 1,157 ms (2,722) |
+| (b) median / slowest (cold) | 1,300 / 1,380 ms (2,770) | 1,328 / 1,443 ms (2,838) | 1,354 / 1,453 ms (2,956) |
+| (c) median / slowest (cold) | 2,096 / 2,176 ms (3,608) | 5,313 / 5,701 ms (6,539) | 2,213 / 2,276 ms (3,840) |
+| (c) share of its 4,822 ms limit, warm / cold | 43% / 75% | 110% / 136% | 46% / 80% |
+| speller lookups (a) known / suggest | 0 / 0 | 786 / 45 | 767 / 3 |
+| speller lookups (c) known / suggest | 0 / 0 | 23,422 / 998 | 3,545 / 0 (budget spent) |
+
+What changed, all with output byte-identical to #34 on dev, both clean-prose sets, (a) and (b):
+- The foreign-phrase check copied the whole text between every pair of spelling matches
+  (`substring` + regex), quadratic in the number of unknown words; it now tests only the gap.
+  This was most of (c)'s extra time.
+- The name check no longer re-asks the speller for the word's own suggestions: LanguageTool's match
+  already carries them.
+- Speller answers are cached per request (`perRequestCache`).
+- Per-request budget for the name and all-caps lookups: 100 ms + 5 µs per UTF-16 unit and
+  500 + units/10 lookups. Once spent, the remaining unknown capitalised words keep their alert
+  (main's behaviour). (c) spends it (851 alerts kept vs 2 on #34, 1,000 on main); (a), (b), dev and
+  clean prose never do.
+
+(c) is under 60% of its limit warm but not cold: main's own cold check of (c) is already 75%.
