@@ -14,7 +14,10 @@ pub fn run() {
             ipc::start_in_background(engine);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![ipc::engine_check, ipc::engine_status, ipc::engine_retry])
+        .invoke_handler(tauri::generate_handler![
+            ipc::engine_check, ipc::engine_status, ipc::engine_retry,
+            ipc::engine_reset_session
+        ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {

@@ -48,9 +48,10 @@ CI (`desktop.yml`, job `contracts`) regenerates and fails on any diff, then runs
 |---|---|---|
 | `engine_check` | command | `{ request: CheckRequest }`. Returns immediately; the answer arrives on `engine://message` |
 | `engine://message` | event | A v1 `CheckResult` or `ErrorMessage`, **unchanged**. Not emitted for stale answers (older docVersion/settingsVersion), or for a waiting check superseded by a newer one before it was sent |
-| `engine_status` | command | `{ "state": EngineState }`. Call once on load |
-| `engine://status` | event | `{ "state": EngineState }` on every change |
-| `engine_retry` | command | Manual retry after `unavailable` |
+| `engine_status` | command | `EngineStatus` (`$defs/EngineStatus`, `{ "state": ... }`). Call once on load |
+| `engine://status` | event | `EngineStatus` on every change |
+| `engine_retry` | command | Manual retry after `unavailable`. The state is already `starting` when the command returns (the spawn continues in the background), so a check sent right after it is queued and delivered at `ready`, not answered `ENGINE_UNAVAILABLE` |
+| `engine_reset_session` | command | **Call on UI load.** Clears the stale filter's versions (a WebView reload restarts at docVersion 1) and drops any waiting check |
 
 `EngineState`:
 - `starting`: the first start, launched in the background at app start.
@@ -58,6 +59,12 @@ CI (`desktop.yml`, job `contracts`) regenerates and fails on any diff, then runs
 - `busy`: a check is running.
 - `restarting`: stopped after a crash or timeout, respawned for the next check.
 - `unavailable`: the engine can't run until a manual retry. This happens when it can't be spawned, after more than one consecutive crash or invalid line, or after 3 consecutive TIMEOUTs with no successful result in between.
+
+Notes:
+- **The stale filter ignores `id`.** It compares only (docVersion, settingsVersion) with the latest request. A retry may reuse the same versions, so the UI matches answers by `id`.
+- **No ordering between events.** A status event may arrive before or after the related `engine://message`.
+- **`unavailable` answers immediately.** While `unavailable`, a check is answered `ENGINE_UNAVAILABLE` immediately.
+- **`EngineStatus` is IPC-only.** It is defined in the schema but is not part of the stdin/stdout message union. Its example is `v1/examples/ipc/engine-status.json`.
 
 Failure contract:
 - **The failed check gets exactly one error.** When the running check fails, it gets one error with its `id`, `docVersion` and `settingsVersion`: `TIMEOUT`, `ENGINE_UNAVAILABLE` (crash) or `ENGINE_ERROR` (invalid engine line). Rust never retries it.

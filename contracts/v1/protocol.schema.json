@@ -265,6 +265,25 @@
         ]
       },
       "description": "An error answering a `check` carries that check's id, docVersion and settingsVersion; receivers drop errors whose versions are not current. Errors not tied to a parseable check (e.g. MALFORMED_REQUEST with id null) omit both."
+    },
+    "EngineStatus": {
+      "description": "Desktop IPC only (engine://status event, engine_status command); not a stdin/stdout message.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "starting",
+            "ready",
+            "busy",
+            "restarting",
+            "unavailable"
+          ]
+        }
+      }
     }
   }
 }

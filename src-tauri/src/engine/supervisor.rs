@@ -114,6 +114,8 @@ struct Inner {
     unavailable: bool,
     /// Set by shutdown(): no more (re)spawns.
     closed: bool,
+    /// `starting` has been published for the current start attempt.
+    announced: bool,
 }
 
 /// Public handle; the shared core is also owned by background respawn threads.
@@ -168,15 +170,42 @@ impl Supervisor {
         Ok(g.running.as_ref().unwrap().ready.clone())
     }
 
-    /// Manual retry after the engine became unavailable.
+    /// Clear the failure budgets (no state change, no spawn). Prefer [`Self::retry`].
     pub fn reset(&self) {
         let mut g = self.core.inner.lock().unwrap();
         g.unavailable = false;
         g.crashes = 0;
         g.timeouts = 0;
-        if g.running.is_none() {
-            self.core.set_state(EngineState::Restarting);
+    }
+
+    /// Manual retry after `unavailable`: clears the budgets and sets `starting` **before
+    /// returning**, so a check submitted right after is queued (delivered at `ready`) rather
+    /// than answered ENGINE_UNAVAILABLE. The spawn itself continues in the background.
+    pub fn retry(&self) {
+        {
+            let mut g = self.core.inner.lock().unwrap();
+            g.unavailable = false;
+            g.crashes = 0;
+            g.timeouts = 0;
+            if g.running.is_some() {
+                return;
+            }
+            g.announced = true;
+            self.core.set_state(EngineState::Starting);
         }
+        let core = Arc::clone(&self.core);
+        thread::spawn(move || {
+            let mut g = core.inner.lock().unwrap();
+            if !g.closed && g.running.is_none() {
+                let _ = core.ensure_running(&mut g);
+            }
+        });
+    }
+
+    /// New UI session: drop any waiting check (it will never be sent; its `submit` returns
+    /// `None`). A check already running is not interrupted.
+    pub fn drop_waiting(&self) {
+        self.core.newest.fetch_add(1, Ordering::SeqCst);
     }
 
     /// Queue a check, keeping only the newest waiting one (PLAN section 4): if a newer
@@ -336,10 +365,11 @@ impl Core {
         if g.closed {
             return Err("The engine has been shut down.".into());
         }
-        // A fresh start is announced; a respawn after a failure stays `restarting`.
-        if !g.unavailable && self.state() != EngineState::Restarting {
+        // A fresh start is announced once; a respawn after a failure stays `restarting`.
+        if !g.unavailable && !g.announced && self.state() != EngineState::Restarting {
             self.publish(EngineState::Starting, true);
         }
+        g.announced = false;
         loop {
             if g.unavailable {
                 self.set_state(EngineState::Unavailable);

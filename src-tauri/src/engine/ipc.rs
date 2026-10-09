@@ -5,10 +5,13 @@
 //!   waiting check (then nothing is emitted for it).
 //! - `engine://status` event and `engine_status` command: `{"state": "starting" | "ready" |
 //!   "busy" | "restarting" | "unavailable"}`. Fetch once on load, then follow the event.
-//! - `engine_retry`: manual retry after `unavailable`.
+//! - `engine_retry`: manual retry after `unavailable`; state is `starting` when it returns.
+//! - `engine_reset_session`: call on UI load (e.g. after a WebView reload restarts at
+//!   docVersion 1): clears the stale filter's versions and drops any waiting check.
 
 use super::{EngineConfig, EngineState, StaleFilter, Supervisor};
-use serde_json::{json, Value};
+use ortografi_contracts::protocol_v1::{EngineStatus, EngineStatusState};
+use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 
@@ -22,8 +25,16 @@ pub struct Engine {
     stale: Mutex<StaleFilter>,
 }
 
-pub fn status_payload(s: EngineState) -> Value {
-    json!({ "state": s.as_str() })
+/// The `EngineStatus` contract type (contracts/v1 `$defs/EngineStatus`).
+pub fn status_payload(s: EngineState) -> EngineStatus {
+    let state = match s {
+        EngineState::Starting => EngineStatusState::Starting,
+        EngineState::Ready => EngineStatusState::Ready,
+        EngineState::Busy => EngineStatusState::Busy,
+        EngineState::Restarting => EngineStatusState::Restarting,
+        EngineState::Unavailable => EngineStatusState::Unavailable,
+    };
+    EngineStatus { state }
 }
 
 impl Engine {
@@ -42,6 +53,12 @@ impl Engine {
         }
         let msg = self.supervisor.submit(request)?;
         self.stale.lock().unwrap().accept(DOC, &msg).then_some(msg.raw)
+    }
+
+    /// New UI session: forget versions and drop any waiting check.
+    pub fn reset_session(&self) {
+        self.stale.lock().unwrap().clear();
+        self.supervisor.drop_waiting();
     }
 }
 
@@ -75,16 +92,17 @@ pub async fn engine_check(app: AppHandle, engine: State<'_, Arc<Engine>>, reques
 }
 
 #[tauri::command]
-pub fn engine_status(engine: State<'_, Arc<Engine>>) -> Value {
+pub fn engine_status(engine: State<'_, Arc<Engine>>) -> EngineStatus {
     status_payload(engine.supervisor.state())
 }
 
 #[tauri::command]
 pub fn engine_retry(engine: State<'_, Arc<Engine>>) {
-    // Off the main thread: reset() waits for a running check.
-    let engine = engine.inner().clone();
-    std::thread::spawn(move || {
-        engine.supervisor.reset();
-        let _ = engine.supervisor.start();
-    });
+    // Sets `starting` synchronously; the spawn continues in the background.
+    engine.supervisor.retry();
+}
+
+#[tauri::command]
+pub fn engine_reset_session(engine: State<'_, Arc<Engine>>) {
+    engine.reset_session();
 }

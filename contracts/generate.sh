@@ -4,5 +4,5 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 node contracts/tools/build-examples.mjs
-pnpm exec json2ts -i contracts/v1/protocol.schema.json -o contracts/generated/ts/protocol-v1.ts --additionalProperties false
+node contracts/tools/gen-ts.mjs contracts/v1/protocol.schema.json contracts/generated/ts/protocol-v1.ts
 cargo typify --no-builder contracts/v1/protocol.schema.json -o contracts/rust/src/protocol_v1.rs

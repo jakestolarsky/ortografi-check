@@ -14,6 +14,11 @@ impl StaleFilter {
         Self::default()
     }
 
+    /// Forget all versions (new UI session, e.g. WebView reload restarting at docVersion 1).
+    pub fn clear(&mut self) {
+        self.latest.clear();
+    }
+
     /// Record a check about to be sent. Versions only move forward.
     pub fn note_request(&mut self, doc: &str, versions: (u64, u64)) {
         let e = self.latest.entry(doc.to_owned()).or_insert(versions);

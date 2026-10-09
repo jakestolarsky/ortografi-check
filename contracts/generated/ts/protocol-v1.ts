@@ -93,3 +93,10 @@ export interface Shutdown {
   protocol: Protocol;
   type: "shutdown";
 }
+
+/**
+ * Desktop IPC only (engine://status event, engine_status command); not a stdin/stdout message.
+ */
+export interface EngineStatus {
+  state: "starting" | "ready" | "busy" | "restarting" | "unavailable";
+}
