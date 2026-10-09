@@ -35,7 +35,7 @@ jobs:
         run: pnpm build
 
   tauri-check:
-    name: src-tauri (cargo check)
+    name: src-tauri (cargo check, test)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -53,6 +53,9 @@ jobs:
       - name: cargo check
         working-directory: src-tauri
         run: cargo check --locked
+      - name: cargo test (engine supervisor against tests/fixtures/fake_engine.py)
+        working-directory: src-tauri
+        run: cargo test --locked
 
   contracts:
     name: contracts (codegen drift, examples)
