@@ -10,10 +10,11 @@ import java.util.List;
  * covering only the comma with "" ("chleb, i" 13..16 → " i" becomes 13..14 → ""), so the
  * following space stays.
  *
- * <p>Applied only when the trimmed edit is punctuation only: what is removed and what is
- * inserted consist of punctuation characters ({@code \p{P}}), and every replacement trims to the
- * same range. Letter, digit and space edits ("Poszłem" → "Poszedłem", "wogóle" → "w ogóle",
- * "kotaa" → "kota") keep the engine's whole-word range, as do mixed edits ("Mimo, że" → "Mimo
+ * <p>Applied only to punctuation edits: what is removed and what is inserted consist of
+ * punctuation ({@code \p{P}}) or whitespace (a missing space after a comma: ",co" → ", co"
+ * becomes " " at the point), every replacement trims to the same range, and the edit is not
+ * inside a word. Letter and digit edits ("Poszłem" → "Poszedłem", "kotaa" → "kota") and
+ * in-word spaces ("wogóle" → "w ogóle") keep the engine's whole-word range, as do mixed edits ("Mimo, że" → "Mimo
  * iż"), and so do punctuation edits inside a word ("email" → "e-mail"). Trimming takes the longest common prefix first, so the result is deterministic. A range
  * edge inside a surrogate pair or before a combining mark is never produced; such issues stay
  * unchanged. Runs on the original text (after {@link NormalizingChecker}), so offsets are
@@ -51,7 +52,7 @@ final class MinimalEditChecker implements Checker {
       String removed = covered.substring(p, covered.length() - q);
       String added = r.substring(p, r.length() - q);
       if (removed.isEmpty() && added.isEmpty()) return i; // replacement equals the text
-      if (!isPunctuation(removed) || !isPunctuation(added)) return i;
+      if (!isPunctuationOrSpace(removed) || !isPunctuationOrSpace(added)) return i;
       int s = i.start() + p;
       int e = i.end() - q;
       if (start >= 0 && (s != start || e != end)) return i;
@@ -69,8 +70,8 @@ final class MinimalEditChecker implements Checker {
         i.message(), List.copyOf(inserted));
   }
 
-  private static boolean isPunctuation(String s) {
-    return s.codePoints().allMatch(c -> switch (Character.getType(c)) {
+  private static boolean isPunctuationOrSpace(String s) {
+    return s.codePoints().allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c) || switch (Character.getType(c)) {
       case Character.CONNECTOR_PUNCTUATION, Character.DASH_PUNCTUATION, Character.START_PUNCTUATION,
           Character.END_PUNCTUATION, Character.INITIAL_QUOTE_PUNCTUATION,
           Character.FINAL_QUOTE_PUNCTUATION, Character.OTHER_PUNCTUATION -> true;
