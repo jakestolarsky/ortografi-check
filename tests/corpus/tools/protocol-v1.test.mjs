@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { corpusIdFromRequestId, fromV1Message, normalizeResultEntries, checkDeletionConvention, V1_CATEGORIES } from './protocol-v1.mjs';
+import { corpusIdFromRequestId, fromV1Message, normalizeResultEntries, V1_CATEGORIES } from './protocol-v1.mjs';
 import { parseJsonl } from './corpus-lib.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -49,20 +49,19 @@ test('strict v1 shape: unknown fields, wrong protocol, bad status and category a
   assert.match(fromV1Message(result('corpus-x', [{ start: 0, end: 1 }])).errors.join(), /missing required field ruleId/);
 });
 
-test('deletion convention: empty fix deletes exactly one comma', () => {
-  const t = 'Był szybki, jak wiatr.';
-  assert.equal(checkDeletionConvention({ start: 10, end: 11, replacements: [''] }, t), null);
-  assert.match(checkDeletionConvention({ start: 10, end: 12, replacements: [''] }, t), /exactly one comma/);
-  assert.match(checkDeletionConvention({ start: 4, end: 10, replacements: [''] }, t), /exactly one comma/);
-  assert.equal(checkDeletionConvention({ start: 4, end: 4, replacements: [','] }, 'Wiem że'), null);
+test('empty fixes delete the whole range, any category or length (contracts decision)', () => {
+  for (const [i, why] of [[issue(4, 10, ['']), 'multi-char'], [issue(0, 3, [''], { category: 'spelling' }), 'non-comma spelling']]) {
+    const r = fromV1Message(result('corpus-p0-0043', [i]));
+    assert.equal(r.errors, undefined, why);
+    assert.deepEqual(r.value.issues[0].replacements, ['']);
+  }
 });
 
-test('validate.mjs accepts the v1 fixture and rejects a non-comma deletion', () => {
+test('validate.mjs accepts the v1 fixture and multi-char deletions', () => {
   const ok = node('validate.mjs', ['--engine', fixture, '--corpus', starter]);
   assert.equal(ok.status, 0, ok.stderr);
   const bad = node('validate.mjs', ['--engine', tmp([result('corpus-p0-0043', [issue(4, 10, [''])])]), '--corpus', starter]);
-  assert.equal(bad.status, 1);
-  assert.match(bad.stderr, /exactly one comma/);
+  assert.equal(bad.status, 0, bad.stderr);
   const unknown = node('validate.mjs', ['--engine', tmp([result('corpus-nope', [])]), '--corpus', starter]);
   assert.match(unknown.stderr, /"nope" not in corpus/);
 });

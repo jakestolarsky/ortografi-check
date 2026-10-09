@@ -161,8 +161,9 @@ defined in `contracts/v1/protocol.schema.json` and `contracts/README.md`, so an 
 can be piped straight from the adapter's stdout. Both formats may be mixed in one file;
 a line is treated as v1 when it has `protocol` and no `schema_version`.
 
-* **Mapping to examples.** The check request `id` is `corpus-<example id>` (the convention
-  of `contracts/tools/build-examples.mjs`, e.g. `corpus-p0-0003`). The scorer strips the
+* **Mapping to examples.** The check request `id` is `corpus-<example id>`, e.g.
+  `corpus-p0-0003`. This is a test-tooling convention (`contracts/tools/build-examples.mjs`
+  and the corpus runner), not part of the protocol, which treats `id` as opaque. The scorer strips the
   `corpus-` prefix; an id without it is used as the example id unchanged. `docVersion` and
   `settingsVersion` are not used for mapping (the stale filter is the app's job, not the
   scorer's). Two answers for the same example are an error.
@@ -173,9 +174,10 @@ a line is treated as v1 when it has `protocol` and no `schema_version`.
 * **`error` with an `id`** becomes `status: error` for that example (counted as misses,
   reported under incomplete/error results). An `error` with `id: null`, and `ready`,
   `check` and `shutdown` lines, are skipped.
-* **Deletion convention** (contracts README, "Edit conventions"): an empty replacement
-  `""` must delete exactly one comma (`end = start + 1`, text there is `,`). Anything else
-  is rejected for v1 lines. Legacy lines are not checked for this.
+* **Deletions** (contracts decision): an issue whose replacements are all `""` deletes
+  its whole `[start, end)` range, in any category and of any length. Removing an
+  unnecessary comma (`end = start + 1`, contracts README) is just the common example; the
+  scorer does not reject other deletions in engine output.
 
 Example fixture: `tests/corpus/tools/fixtures/v1-results.jsonl`.
 

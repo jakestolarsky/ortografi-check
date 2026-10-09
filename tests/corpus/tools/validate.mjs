@@ -6,7 +6,7 @@
 //   (results may be corpus result lines or v1 protocol messages; FORMAT.md "Protocol v1 input")
 import { pathToFileURL } from 'node:url';
 import { readJsonl, validateCorpus, validateEngineResult, checkSplitLocation, expandPaths } from './corpus-lib.mjs';
-import { normalizeResultEntries, validateV1AgainstExample } from './protocol-v1.mjs';
+import { normalizeResultEntries } from './protocol-v1.mjs';
 
 function parseArgs(argv) {
   const a = { corpus: [], engine: null, quiet: false };
@@ -55,7 +55,7 @@ export function main(argv) {
   }
   if (args.engine) {
     const seen = new Set();
-    for (const { line, value, errors: lineErrs, v1 } of normalizeResultEntries(readJsonl(args.engine))) {
+    for (const { line, value, errors: lineErrs } of normalizeResultEntries(readJsonl(args.engine))) {
       const where = `${args.engine}:${line}`;
       if (lineErrs.length) { lineErrs.forEach((e) => errors.push(`${where}: ${e}`)); continue; }
       const ex = value && byId.get(value.id);
@@ -63,7 +63,6 @@ export function main(argv) {
       if (value && seen.has(value.id)) errors.push(`${where}: duplicate result for ${value.id}`);
       if (value) seen.add(value.id);
       validateEngineResult(value, ex).forEach((e) => errors.push(`${where}: ${e}`));
-      if (v1) validateV1AgainstExample(value, ex).forEach((e) => errors.push(`${where}: ${e}`));
     }
   }
   if (!args.quiet) warnings.forEach((w) => console.warn(`warning: ${w}`));

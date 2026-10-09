@@ -65,13 +65,6 @@ export function validateV1Message(m) {
   return errors;
 }
 
-/** Deletion convention (contracts/README.md "Edit conventions"): an empty fix deletes only a comma. */
-export function checkDeletionConvention(issue, text) {
-  if (!Array.isArray(issue.replacements) || !issue.replacements.includes('')) return null;
-  if (issue.end === issue.start + 1 && text.slice(issue.start, issue.end) === ',') return null;
-  return `empty replacement must delete exactly one comma (end = start + 1); got [${issue.start}, ${issue.end}) ${JSON.stringify(text.slice(issue.start, issue.end))}`;
-}
-
 /**
  * Convert one v1 message to a scorer line.
  * Returns { skip: true } for messages with no corpus answer (ready, check, shutdown,
@@ -109,14 +102,3 @@ export function normalizeResultEntries(entries) {
   return out;
 }
 
-/** Extra checks for a v1 result once its corpus example is known. */
-export function validateV1AgainstExample(value, example) {
-  if (!example) return [];
-  const errs = [];
-  value.issues.forEach((iss, n) => {
-    if (iss.end > example.text.length || iss.start > iss.end) return; // reported by validateEngineResult
-    const e = checkDeletionConvention(iss, example.text);
-    if (e) errs.push(`issues[${n}]: ${e}`);
-  });
-  return errs;
-}
