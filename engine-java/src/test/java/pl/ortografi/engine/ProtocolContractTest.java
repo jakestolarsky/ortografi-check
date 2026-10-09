@@ -22,18 +22,21 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Adapter output against Desktop's contracts/v1 (copied from PR #8 into test resources until it
- * merges), with the real engine, the shared examples and the corpus-built fixtures.
+ * Adapter output against the committed contracts/v1 (the single source of truth, read directly
+ * from the repo root), with the real engine, the shared examples and the corpus-built fixtures.
  */
 class ProtocolContractTest {
 
   private static final ObjectMapper JSON = new ObjectMapper();
+  /** Maven runs tests from engine-java/, so the repo's contracts/v1 is one level up. */
+  static final Path CONTRACTS = Path.of("../contracts/v1");
+  private static final Path EXAMPLES = CONTRACTS.resolve("examples");
   private static JsonSchema schema;
   private static Checker engine;
 
   @BeforeAll
   static void load() throws Exception {
-    try (InputStream in = ProtocolContractTest.class.getResourceAsStream("/contracts/v1/protocol.schema.json")) {
+    try (InputStream in = Files.newInputStream(CONTRACTS.resolve("protocol.schema.json"))) {
       schema = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(in);
     }
     engine = Main.engine();
@@ -66,16 +69,18 @@ class ProtocolContractTest {
 
   @Test
   void sharedExamplesAreValid() throws Exception {
-    try (Stream<Path> files = Files.list(Path.of(ProtocolContractTest.class.getResource("/contracts/v1/examples").toURI()))) {
-      for (Path f : files.toList()) assertValid(JSON.readTree(f.toFile()));
+    // Top-level examples are stdin/stdout messages; examples/ipc/ is Desktop IPC only, not engine output.
+    try (Stream<Path> files = Files.list(EXAMPLES)) {
+      List<Path> json = files.filter(f -> Files.isRegularFile(f) && f.toString().endsWith(".json")).sorted().toList();
+      assertTrue(json.size() >= 17, "expected the shared examples in " + EXAMPLES.toAbsolutePath() + ", got " + json);
+      for (Path f : json) assertValid(JSON.readTree(f.toFile()));
     }
   }
 
   private static JsonNode example(String name) throws Exception {
-    try (InputStream in = ProtocolContractTest.class.getResourceAsStream("/contracts/v1/examples/" + name + ".json")) {
-      assertNotNull(in, name);
-      return JSON.readTree(in);
-    }
+    Path f = EXAMPLES.resolve(name + ".json");
+    assertTrue(Files.isRegularFile(f), f.toAbsolutePath().toString());
+    return JSON.readTree(f.toFile());
   }
 
   /**

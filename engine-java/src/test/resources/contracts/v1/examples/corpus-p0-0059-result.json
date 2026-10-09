@@ -1,1 +1,0 @@
-{"protocol":1,"type":"result","id":"corpus-p0-0059","docVersion":2,"settingsVersion":1,"engineVersion":"6.8","status":"complete","analysisMs":10,"issues":[{"start":29,"end":37,"ruleId":"MORFOLOGIK_RULE_PL_PL","category":"spelling","engineCategory":"TYPOS","issueType":"misspelling","message":"Prawdopodobny błąd pisowni.","replacements":["dziękuję"]}]}
