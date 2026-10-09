@@ -10,7 +10,7 @@ validates real adapter output, the shared examples and the corpus fixtures again
 Requires Temurin 21 (measured with 21.0.12.1+1) and Maven 3.9.
 
 ```sh
-mvn test            # 108 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
+mvn test            # 109 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
 mvn package         # target/ortografi-engine-0.0.1-phase0.jar + target/lib/*.jar (engine JARs kept separate, LGPL)
 java -jar target/ortografi-engine-0.0.1-phase0.jar
 scripts/jlink-runtime.sh --check      # runtime-modules.txt (+ runtime-modules-excluded.txt) covers jdeps output
@@ -95,7 +95,10 @@ only (`System.out` is redirected to stderr at startup); stderr carries logs and 
     zero-length `" "` insertion (`"2025r."` 18..24 → `"2025 r."` becomes 22..22 → `" "`;
     `"50zł"` → 14..14 `" "`), and an extra space is a deletion of only that space with `""`
     (`"Mam  dwa"` 3..5 → `" "` becomes 4..5 → `""`; `" ,"` → `","` deletes the space).
-    Duplicate replacements after trimming are dropped. An issue whose suggestions don't all
+    Duplicate replacements after trimming are dropped. **Typographic spacing only:** double
+    spaces, a space next to punctuation, and digit-letter boundaries. A space added or removed
+    between two letters (`Nielubię` → `Nie lubię`, `Na przeciwko` → `Naprzeciwko`) is a spelling
+    fix and keeps the whole-word replacement. An issue whose suggestions don't all
     trim to the same range (e.g. one whitespace-only, one also adding a letter) keeps the
     engine span with every suggestion in full.
   - Letter and digit edits and anything inside a word (`Poszłem` → `Poszedłem`,

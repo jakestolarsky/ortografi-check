@@ -64,6 +64,12 @@ final class MinimalEditChecker implements Checker {
           && isWhitespace(removed) && isWhitespace(added);
       if (!punctuationEdit && !whitespaceEdit) return i;
       if (!(whitespaceEdit && removed.isEmpty())) onlySpaceInsertions = false;
+      // Whitespace trimming is for typographic spacing only: a double space, a space next to
+      // punctuation, or a missing space at a digit-letter boundary ("2025r.", "50zł"). A space
+      // inserted or removed between two letters ("Nielubię" → "Nie lubię", "Na przeciwko" →
+      // "Naprzeciwko") is a spelling fix and keeps the whole-word replacement.
+      if (!punctuationEdit
+          && !isTypographicSpacing(text, i.start() + p, i.end() - q, removed.isEmpty())) return i;
       int s = i.start() + p;
       int e = i.end() - q;
       if (start >= 0 && (s != start || e != end)) return i;
@@ -82,6 +88,18 @@ final class MinimalEditChecker implements Checker {
             && Character.isLetter(text.codePointAt(end)))) return i;
     return new Issue(start, end, i.ruleId(), i.category(), i.engineCategory(), i.issueType(),
         i.message(), inserted.stream().distinct().toList());
+  }
+
+  private static boolean isTypographicSpacing(String text, int start, int end, boolean insertion) {
+    if (start <= 0 || end >= text.length()) return true;
+    int before = text.codePointBefore(start);
+    int after = text.codePointAt(end);
+    if (isSpaceOrPunctuation(before) || isSpaceOrPunctuation(after)) return true;
+    return insertion && Character.isDigit(before) && Character.isLetter(after);
+  }
+
+  private static boolean isSpaceOrPunctuation(int c) {
+    return isPunctuationOrSpace(new String(Character.toChars(c)));
   }
 
   private static boolean isWhitespace(String s) {

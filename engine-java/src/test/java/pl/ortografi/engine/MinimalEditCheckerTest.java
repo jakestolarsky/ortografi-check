@@ -225,4 +225,15 @@ class MinimalEditCheckerTest {
     Issue two = issue(13, 16, " i", ", oraz");
     assertEquals(two, narrow("Kupiłem chleb, i mleko.", two).get(0));
   }
+
+  @Test
+  void spacesBetweenTwoLettersStayWholeWordEvenAsTheOnlySuggestion() throws Exception {
+    // Typographic scope only: splitting or joining words is a spelling fix, not spacing.
+    Issue split = issue(0, 8, "Nie lubię");
+    assertEquals(split, narrow("Nielubię szpinaku.", split).get(0));
+    Issue join = issue(0, 12, "Naprzeciwko");
+    assertEquals(join, narrow("Na przeciwko domu.", join).get(0));
+    Issue joinLower = issue(5, 17, "naprzeciwko");
+    assertEquals(joinLower, narrow("Stał na przeciwko domu.", joinLower).get(0));
+  }
 }
