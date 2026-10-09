@@ -11,8 +11,8 @@ Requires Temurin 21 (measured with 21.0.12.1+1) and Maven 3.9.
 
 ```sh
 mvn test            # 102 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
-mvn package         # target/ortografi-engine-0.0.1-phase0.jar + target/lib/*.jar (engine JARs kept separate, LGPL)
-java -jar target/ortografi-engine-0.0.1-phase0.jar
+mvn package         # target/ortografi-engine.jar + target/lib/*.jar (engine JARs kept separate, LGPL)
+java -jar target/ortografi-engine.jar
 scripts/jlink-runtime.sh --check      # runtime-modules.txt (+ runtime-modules-excluded.txt) covers jdeps output
 scripts/jlink-runtime.sh target/runtime   # also writes target/engine-manifest.json
 python3 scripts/smoke_test.py --java target/runtime/bin/java --compare-java "$JAVA_HOME/bin/java"
@@ -31,11 +31,11 @@ bundle contains.
 {
   "manifestVersion": 1,
   "protocol": 1,
-  "adapter": { "version": "0.0.1-phase0", "jar": "ortografi-engine-0.0.1-phase0.jar" },
+  "adapter": { "version": "0.0.1-phase0", "jar": "ortografi-engine.jar" },
   "languageTool": { "version": "6.8" },
   "runtime": { "vendor": "Eclipse Adoptium", "vendorVersion": "Temurin-21.0.12.1+1",
                "version": "21.0.12.1+1-LTS", "os": "Linux", "arch": "amd64" },
-  "sha256": { "lib/language-pl-6.8.jar": "…", "ortografi-engine-0.0.1-phase0.jar": "…", "runtime/bin/java": "…" }
+  "sha256": { "lib/language-pl-6.8.jar": "…", "ortografi-engine.jar": "…", "runtime/bin/java": "…" }
 }
 ```
 
@@ -46,8 +46,9 @@ bundle contains.
   covers this.
 - The adapter version comes from the JAR's `Implementation-Version`. The LanguageTool version
   comes from `JLanguageTool.VERSION`.
-- If staging renames the JAR (Desktop stages it as `ortografi-engine.jar`), the hash still
-  matches, but `adapter.jar` keeps the original name.
+- The build outputs the JAR as `ortografi-engine.jar` (Maven `finalName`, no version), the
+  same name the app installs. The manifest lists it under that name, so installer checksum
+  checks can compare paths directly. The version is only in `adapter.version`.
 
 ## Bundle trim
 
@@ -110,7 +111,7 @@ only (`System.out` is redirected to stderr at startup); stderr carries logs and 
 ## Corpus run (engine-result JSONL v1.0, tests/corpus/FORMAT.md)
 
 ```sh
-java -cp "target/ortografi-engine-0.0.1-phase0.jar:target/lib/*" pl.ortografi.engine.CorpusRunner \
+java -cp "target/ortografi-engine.jar:target/lib/*" pl.ortografi.engine.CorpusRunner \
   ../tests/corpus/data/phase0-starter.jsonl > results.jsonl
 node tests/corpus/tools/score.mjs --corpus 'tests/corpus/data/*.jsonl' --results results.jsonl --split dev [--match exact]
 ```

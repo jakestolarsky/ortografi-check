@@ -24,7 +24,7 @@ fi
 
 cd "$ROOT/engine-java"
 mvn -B -ntp -q package -DskipTests
-JAR=$(ls target/ortografi-engine-*.jar | head -n 1)
+JAR=target/ortografi-engine.jar
 
 # Keep the placeholder; replace everything else.
 find "$DEST" -mindepth 1 ! -name .gitkeep -exec rm -rf {} + 2>/dev/null || true

@@ -66,7 +66,8 @@ jobs:
           import hashlib, json, pathlib
           t = pathlib.Path('target'); m = json.loads((t / 'engine-manifest.json').read_text())
           assert m['languageTool']['version'] == '6.8' and m['runtime']['vendorVersion'], m
-          shipped = sorted(str(p.relative_to(t)).replace('\\', '/') for p in [*t.glob('ortografi-engine-*.jar'), *t.glob('lib/*.jar'), *(f for f in (t / 'runtime').rglob('*') if f.is_file())])
+          assert m['adapter']['jar'] == 'ortografi-engine.jar' and 'ortografi-engine.jar' in m['sha256'], m['adapter']
+          shipped = sorted(str(p.relative_to(t)).replace('\\', '/') for p in [t / 'ortografi-engine.jar', *t.glob('lib/*.jar'), *(f for f in (t / 'runtime').rglob('*') if f.is_file())])
           assert sorted(m['sha256']) == shipped, set(m['sha256']) ^ set(shipped)
           for r, h in m['sha256'].items():
               assert hashlib.sha256((t / r).read_bytes()).hexdigest() == h, r

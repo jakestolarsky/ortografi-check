@@ -50,7 +50,7 @@ arguments) take precedence over the bundled engine, e.g. to run a freshly built 
 
 ```sh
 export ORTOGRAFI_ENGINE=java
-export ORTOGRAFI_ENGINE_ARGS="-jar $PWD/engine-java/target/ortografi-engine-0.0.1-phase0.jar"
+export ORTOGRAFI_ENGINE_ARGS="-jar $PWD/engine-java/target/ortografi-engine.jar"
 pnpm tauri dev
 ```
 
@@ -71,8 +71,8 @@ pnpm check                             # svelte-check / TypeScript
 ```sh
 cd engine-java
 mvn test
-mvn package                            # target/ortografi-engine-0.0.1-phase0.jar + target/lib/*.jar
-java -jar target/ortografi-engine-0.0.1-phase0.jar   # optional: prints the protocol `ready` line; Ctrl-D to exit
+mvn package                            # target/ortografi-engine.jar + target/lib/*.jar
+java -jar target/ortografi-engine.jar   # optional: prints the protocol `ready` line; Ctrl-D to exit
 cd ..
 ```
 
