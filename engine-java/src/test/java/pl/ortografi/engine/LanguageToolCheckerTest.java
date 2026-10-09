@@ -119,6 +119,20 @@ class LanguageToolCheckerTest {
   }
 
   @Test
+  void knownLimitationDecomposedPolishLettersAreFlaggedAsMisspellings() throws Exception {
+    // Characterization, not a desired behaviour: LanguageTool 6.8 does not normalise NFD input,
+    // so "Zażółć" typed with combining marks is reported as a typo while NFC is accepted.
+    // PLAN.md section 4 forbids silent normalisation; any fix needs an offset map. Phase 0 finding.
+    String nfc = "Zażółć gęślą jaźń.";
+    String nfd = java.text.Normalizer.normalize(nfc, java.text.Normalizer.Form.NFD);
+    assertEquals(List.of(), checker.check(nfc));
+    List<Issue> issues = checker.check(nfd);
+    assertEquals(3, issues.size(), issues::toString);
+    assertTrue(issues.stream().allMatch(i -> i.ruleId().equals("MORFOLOGIK_RULE_PL_PL")));
+    assertOffsetsAreValidUtf16(nfd, issues);
+  }
+
+  @Test
   void emptyTextHasNoIssues() throws Exception {
     assertEquals(List.of(), checker.check(""));
   }
