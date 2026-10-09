@@ -1,0 +1,10 @@
+java.base
+java.compiler
+java.desktop
+java.naming
+java.scripting
+java.sql
+jdk.management
+jdk.unsupported
+jdk.charsets
+jdk.localedata
