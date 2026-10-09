@@ -60,6 +60,19 @@ jobs:
       - name: Build jlink runtime
         run: scripts/jlink-runtime.sh target/runtime
 
+      - name: Engine manifest matches the built files
+        run: |
+          python - <<'PY'
+          import hashlib, json, pathlib
+          t = pathlib.Path('target'); m = json.loads((t / 'engine-manifest.json').read_text())
+          assert m['languageTool']['version'] == '6.8' and m['runtime']['vendorVersion'], m
+          shipped = sorted(str(p.relative_to(t)).replace('\\', '/') for p in [*t.glob('ortografi-engine-*.jar'), *t.glob('lib/*.jar'), *(f for f in (t / 'runtime').rglob('*') if f.is_file())])
+          assert sorted(m['sha256']) == shipped, set(m['sha256']) ^ set(shipped)
+          for r, h in m['sha256'].items():
+              assert hashlib.sha256((t / r).read_bytes()).hexdigest() == h, r
+          print(f"engine-manifest.json OK: {len(shipped)} files, runtime {m['runtime']['vendorVersion']}")
+          PY
+
       - name: Smoke test on the full JDK
         run: python scripts/smoke_test.py --java "$JAVA_HOME/bin/java"
 

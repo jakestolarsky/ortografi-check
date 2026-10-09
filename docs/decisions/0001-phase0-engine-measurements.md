@@ -77,7 +77,7 @@ above; the adapter now includes the NFC layer (the sample is already NFC, so it 
 The runtime is built by `engine-java/scripts/jlink-runtime.sh` from the pinned module list
 `engine-java/runtime-modules.txt`: 8 modules from `jdeps --print-module-deps`, plus
 `jdk.charsets` and `jdk.localedata` (`--include-locales=en,pl`, `--strip-debug`,
-`--compress=zip-6`). `jlink-runtime.sh --check` fails if jdeps ever needs a module that is
+`--compress=zip-6`; since phase 2 `zip-0` and no `java.desktop`, see "Bundle size (phase 2 trim)"). `jlink-runtime.sh --check` fails if jdeps ever needs a module that is
 not on the list. `engine-java/scripts/smoke_test.py --compare-java` ran the adapter on
 the jlinked runtime and on the full JDK. Both produced **identical issue lists** for a
 Unicode/NFD/CRLF case and for the 1k, 10k and 50k samples (4, 6, 49 and 231 issues), and
@@ -104,7 +104,7 @@ Biggest adapter JARs: `grpc-netty-shaded` 10.1 MB, `fastutil-core` 6.3, `languag
 `guava` 2.9, `proto-google-common-protos` 2.6, `lucene-core` 2.3, `languagetool-core` 1.9.
 `language-pl` itself is small; most size comes from `languagetool-core` transitive deps
 (gRPC/protobuf/remote-rule/metrics stacks) that a local PL checker likely never touches.
-These are candidates for exclusion in phase 5, **only** after corpus checks.
+These were excluded in phase 2 after corpus checks; see "Bundle size (phase 2 trim)".
 
 ## Observations
 
@@ -305,30 +305,49 @@ During development, two variants regressed dev and were rejected:
 - **Also trimming removed spaces:** this broke the spacing/whitespace convention (p0-0044,
   p0-0045, p1-0202).
 
-## Dev re-score after corpus #11 (phase 2, 2026-10-09 22:55 CEST)
+## Bundle size (phase 2 trim, 2026-10-09 23:40 CEST)
 
-Dev split only (`--split dev`; held-out not run). Corpus: main @ `8c5d21b` (#11 merged, which
-changed p2-0023 and p2-0024): `phase0-starter`, `phase1-dev`, `phase2-dev`, 252 examples, 90
-clean. Engine unchanged since the minimal-edit change above. Scoring 1.2 (style/other excluded
-from P/R), main's `score.mjs` on `CorpusRunner` output.
+Goal: the engine bundle (jlinked runtime + adapter JAR + `lib/*.jar`) inside the 100 MiB
+compressed budget for the whole app (PLAN.md section 11). Desktop's PR #17 staged it at 113 MiB
+installed / 85 MiB tar.gz. Linux x64, Temurin 21.0.12.1+1. Installed = `du -sb` of the staged
+tree; compressed = whole tree as `tar | gzip -9` and `tar | xz -9` (LZMA, close to what
+NSIS/DMG/AppImage installers use). Each row adds one change to the row above it.
 
-| Mode | TP | FP | FN | Precision | Recall | F1 | Top-1 |
-|---|---|---|---|---|---|---|---|
-| overlap (default) | 117 | 2 | 47 | 98.3% | 71.3% | 82.7% | 73.5% |
-| exact | 97 | 22 | 67 | 81.5% | 59.1% | 68.6% | 85.6% |
-| strict category | 109 | 11 | 55 | 90.8% | 66.5% | 76.8% | 77.1% |
+Every kept row passed `mvn verify` (all tests), the jlink smoke test
+(`smoke_test.py --compare-java`: identical issue lists vs the full JDK), and gave **byte-identical
+dev corpus output** (`CorpusRunner` on the staged runtime, `analysisMs` ignored), so the dev scores
+per category are unchanged. Corpus snapshot for all rows: main @ `8c5d21b` (before corpus #20).
 
-- Per category (overlap): grammar P 93.3% / R 41.2%, punctuation 100% / 82.5%, spelling
-  98.2% / 76.7%.
-- Clean-sentence false positives: **0/90 (0.0%)** (strict category: 1/90, p1-0126).
-- Release-critical failures: none.
-- Versus the phase-1 dev run (P 98.1% / R 76.1% / F1 85.7%, 0/82 clean): recall drops because
-  the corpus grew (phase-2 examples, mostly grammar), not because the engine changed. Exact F1
-  68.6% equals the earlier run on the #11 draft.
-- Scoring the adapter's raw v1 output with corpus/phase3's scorer fails validation on
-  p1-0206: `SKROTY_BEZ_KROPKI` deletes the period in `Mgr.` (3..4, `""`), and that validator
-  requires every empty replacement to delete a comma. contracts/README.md states the rule only
-  for unnecessary commas, so the validator needs to allow other one-character deletions.
+| Step | Installed | runtime | lib | gzip -9 | xz -9 | Kept? |
+|---|---|---|---|---|---|---|
+| Before (main: `--strip-debug --no-header-files --no-man-pages --compress=zip-6`) | 111.7 MiB | 60.1 | 51.5 | 84.9 MiB | 80.3 MiB | baseline |
+| `--compress=zip-9` instead of zip-6 | 111.6 | 60.1 | 51.5 | 84.9 | 80.2 | no (no gain) |
+| `--strip-native-debug-symbols` | 111.7 | 60.1 | 51.5 | 84.9 | 80.3 | no (Temurin libs already stripped) |
+| `--compress=zip-0` (installer compresses instead) | 143.7 | 92.1 | 51.5 | 77.9 | 66.3 | **yes** |
+| drop `java.desktop` (see `runtime-modules-excluded.txt`) | 119.7 | 68.2 | 51.5 | 69.3 | 60.7 | **yes** |
+| also drop `jdk.localedata` | 119.1 | 67.6 | 51.5 | 69.2 | 60.6 | no (0.1 MiB, Polish locale data) |
+| exclude `grpc-netty-shaded` (+ grpc-core/util/context, gson, perfmark) | 108.6 | 68.2 | 40.4 | 58.9 | 50.8 | **yes** |
+| exclude `grpc-protobuf`, `protobuf-java` (+ common-protos) | 104.3 | 68.2 | 36.0 | 54.7 | 46.7 | **yes** |
+| exclude Prometheus/Micrometer metrics | 103.3 | 68.2 | 35.0 | 53.8 | 45.8 | **yes** |
+| exclude `resilience4j-circuitbreaker` (+ vavr) | 102.3 | 68.2 | 34.1 | 52.9 | 44.8 | **yes** |
+| exclude `hunspell` (+ JNA; Polish uses Morfologik) | 98.4 | 68.2 | 30.2 | 49.3 | 41.3 | **yes** |
+| exclude Lucene (n-gram data, not used) | 95.7 | 68.2 | 27.5 | 46.9 | 38.9 | **yes** |
+| exclude `language-detector` (+ jsonic) | 93.7 | 68.2 | 25.5 | 44.9 | 37.0 | **yes** |
+| **Final** (+ `engine-manifest.json`) | **93.8 MiB** | 68.2 | 25.5 | **45.0 MiB** | **37.0 MiB** | |
+
+Rejected because tests failed: excluding `opentelemetry-api` (`TelemetryProvider` is loaded by
+`JLanguageTool`), `grpc-api` (`io.grpc.Channel` is linked by core) and `fastutil-core`
+(`ObjectOpenHashSet` in rule loading).
+
+- Net: **−40 MiB compressed (gzip), −43 MiB (xz), −18 MiB installed**. zip-0 makes the runtime
+  32 MiB bigger on disk but saves 7–14 MiB compressed, because the installer can compress the
+  modules image better than jlink's per-resource zip. Installed stays well under 220 MiB.
+- Not done: editing the LanguageTool JARs themselves (e.g. `false-friends.xml`, 0.5 MiB in
+  `languagetool-core`). They stay unmodified LGPL JARs (PLAN.md section 14).
+- Held-out was run exactly twice, before trimming and on the final bundle; no change was tuned on
+  it. Both runs gave identical output: overlap P 100% / R 77.5% / F1 87.3%, 0/40 clean false
+  positives (110 examples, `phase1-heldout` + `phase2-heldout`).
+- macOS and Windows sizes still come from CI only (the JARs are the same on every OS).
 
 ## Open items
 

@@ -1,6 +1,5 @@
 java.base
 java.compiler
-java.desktop
 java.naming
 java.scripting
 java.sql
