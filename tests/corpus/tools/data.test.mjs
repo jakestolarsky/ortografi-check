@@ -61,3 +61,14 @@ test('no duplicate texts; clean share and held-out share stay near targets', () 
   assert.ok(all.some((e) => e.release_critical && e.split === 'heldout'), 'release-critical cases in heldout');
   assert.ok(all.filter((e) => e.text !== e.text.normalize('NFC')).length >= 10, 'NFD examples');
 });
+
+test('extra-comma deletions cover only the comma, fix "", following space kept (FORMAT.md "Deletion ranges")', () => {
+  const bad = [];
+  for (const e of all) for (const i of e.issues) {
+    if (i.subcategory !== 'punctuation.extra_comma') continue;
+    const ok = i.original === ',' && i.end - i.start === 1 && i.fixes.length === 1 && i.fixes[0] === ''
+      && e.text[i.start - 1] !== ' ' && e.text[i.end] === ' ';
+    if (!ok) bad.push(e.id);
+  }
+  assert.deepEqual(bad, []);
+});
