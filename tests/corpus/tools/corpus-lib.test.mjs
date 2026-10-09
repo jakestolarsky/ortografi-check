@@ -77,7 +77,7 @@ test('overlapping issues, no-op fixes, bad categories are rejected', () => {
   const i1 = { start: 2, end: 6, original: 'em ż', category: 'spelling', subcategory: 'spelling.typo', fixes: ['x'], required: true };
   assert.match(errs(base({ issues: [i0, i1], corrected_text: undefined })).join(), /overlap/);
   assert.match(errs(base({ issues: [{ ...i0, fixes: ['Wiem'] }], corrected_text: undefined })).join(), /no-op/);
-  assert.match(errs(base({ issues: [{ ...i0, category: 'style', subcategory: 'style.x' }], corrected_text: undefined })).join(), /category must be one of/);
+  assert.match(errs(base({ issues: [{ ...i0, category: 'typography', subcategory: 'typography.x' }], corrected_text: undefined })).join(), /category must be one of/);
   assert.match(errs(base({ issues: [{ ...base().issues[0], fixes: [''] }], corrected_text: undefined })).join(), /zero-length range is a no-op/);
 });
 
@@ -112,4 +112,25 @@ test('split must match file location', async () => {
   assert.deepEqual(checkSplitLocation('data/heldout/b.jsonl', [held]), []);
   assert.match(checkSplitLocation('data/a.jsonl', [held]).join(), /expected "dev"/);
   assert.match(checkSplitLocation('data/heldout/b.jsonl', [dev]).join(), /expected "heldout"/);
+});
+
+test('style issues need format 1.1 and required: false', () => {
+  const st = { start: 0, end: 4, original: 'Wiem', category: 'style', subcategory: 'style.x', fixes: ['Wiem.'], required: false };
+  assert.deepEqual(errs(base({ schema_version: '1.1', issues: [st], corrected_text: undefined })), []);
+  assert.match(errs(base({ issues: [st], corrected_text: undefined })).join(), /needs schema_version 1.1/);
+  assert.match(errs(base({ schema_version: '1.1', issues: [{ ...st, required: true }] })).join(), /must have required: false/);
+});
+
+test('expandPaths expands *, ** and keeps plain paths', async () => {
+  const { expandPaths } = await import('./corpus-lib.mjs');
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { tmpdir } = await import('node:os');
+  const d = mkdtempSync(join(tmpdir(), 'corpus-glob-'));
+  mkdirSync(join(d, 'heldout'));
+  for (const f of ['a.jsonl', 'b.jsonl', 'x.txt', 'heldout/c.jsonl']) writeFileSync(join(d, f), '');
+  assert.deepEqual(expandPaths([`${d}/*.jsonl`]), [join(d, 'a.jsonl'), join(d, 'b.jsonl')]);
+  assert.deepEqual(expandPaths([`${d}/**/*.jsonl`]), [join(d, 'a.jsonl'), join(d, 'b.jsonl'), join(d, 'heldout/c.jsonl')]);
+  assert.deepEqual(expandPaths(['plain.jsonl']), ['plain.jsonl']);
+  assert.throws(() => expandPaths([`${d}/*.csv`]), /no files match/);
 });

@@ -4,19 +4,22 @@
 //   node validate.mjs <corpus.jsonl>...
 //   node validate.mjs --engine <results.jsonl> --corpus <corpus.jsonl>...
 import { pathToFileURL } from 'node:url';
-import { readJsonl, validateCorpus, validateEngineResult, checkSplitLocation } from './corpus-lib.mjs';
+import { readJsonl, validateCorpus, validateEngineResult, checkSplitLocation, expandPaths } from './corpus-lib.mjs';
 
 function parseArgs(argv) {
   const a = { corpus: [], engine: null, quiet: false };
   for (let i = 0; i < argv.length; i++) {
     const x = argv[i];
     if (x === '--engine') a.engine = argv[++i];
-    else if (x === '--corpus') a.corpus.push(argv[++i]);
+    else if (x === '--corpus') {
+      while (i + 1 < argv.length && !argv[i + 1].startsWith('--')) a.corpus.push(argv[++i]);
+    }
     else if (x === '--quiet') a.quiet = true;
     else if (x.startsWith('--')) throw new Error(`unknown option ${x}`);
     else a.corpus.push(x);
   }
   if (a.corpus.length === 0) throw new Error('no corpus file given');
+  a.corpus = expandPaths(a.corpus);
   return a;
 }
 

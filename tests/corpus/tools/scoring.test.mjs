@@ -152,3 +152,29 @@ test('report counts examples per split', () => {
   assert.deepEqual(r.splits, { dev: 1, heldout: 1 });
   assert.equal(r.options.split, 'all');
 });
+
+test('expected style issues are neutral; style hits on them do not count against clean sentences', () => {
+  const text = 'Mi się to nie podoba.';
+  const corpus = [ex('m', text, [{ start: 0, end: 2, category: 'style', fixes: ['Mnie'], required: false }])];
+  const flaggedStyle = scoreCorpus(corpus, new Map([res('m', [{ start: 0, end: 2, category: 'style', replacements: ['Mnie'] }])]));
+  assert.deepEqual([flaggedStyle.overall.tp, flaggedStyle.overall.fp, flaggedStyle.overall.fn], [0, 0, 0]);
+  assert.equal(flaggedStyle.clean_set.examples, 1);
+  assert.equal(flaggedStyle.clean_set.with_false_positive, 0);
+  assert.deepEqual(flaggedStyle.expected_non_error, { style: { expected: 1, flagged: 1 } });
+  const flaggedGrammar = scoreCorpus(corpus, new Map([res('m', [{ start: 0, end: 2, category: 'grammar', replacements: ['Mnie'] }])]));
+  assert.deepEqual([flaggedGrammar.overall.tp, flaggedGrammar.overall.fp], [0, 0]);
+  const none = scoreCorpus(corpus, new Map([res('m', [])]));
+  assert.equal(none.overall.fn, 0);
+  assert.deepEqual(none.expected_non_error, { style: { expected: 1, flagged: 0 } });
+  // A style prediction elsewhere on that sentence still counts as a clean-sentence false alarm.
+  const elsewhere = scoreCorpus(corpus, new Map([res('m', [{ start: 14, end: 20, category: 'style', replacements: [] }])]));
+  assert.equal(elsewhere.clean_set.with_false_positive, 1);
+});
+
+test('optional comma: inserting it or not are both fine', () => {
+  const corpus = [ex('o', 'Według mnie to dobry pomysł.', [{ start: 11, end: 11, category: 'punctuation', fixes: [','], required: false }])];
+  for (const issues of [[], [{ start: 11, end: 11, category: 'punctuation', replacements: [','] }]]) {
+    const r = scoreCorpus(corpus, new Map([res('o', issues)]));
+    assert.deepEqual([r.overall.tp, r.overall.fp, r.overall.fn, r.clean_set.with_false_positive], [0, 0, 0, 0]);
+  }
+});

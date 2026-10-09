@@ -1,18 +1,22 @@
 #!/usr/bin/env node
 // Score engine results against the corpus. See ../FORMAT.md ("Scoring").
-// Usage: node score.mjs --corpus <corpus.jsonl>... --results <results.jsonl>
+// Usage: node score.mjs --corpus <file|glob>... --results <results.jsonl>
+//   (--corpus accepts several files and quoted globs such as 'tests/corpus/data/**/*.jsonl')
 //          [--split all|dev|heldout] [--json] [--match overlap|exact] [--strict-category]
 //          [--score-all-categories] [--fail-on-release-critical]
 // Results for examples outside the selected split are ignored.
 import { pathToFileURL } from 'node:url';
-import { readJsonl, validateCorpus, validateEngineResult } from './corpus-lib.mjs';
+import { readJsonl, validateCorpus, validateEngineResult, expandPaths } from './corpus-lib.mjs';
 import { scoreCorpus } from './scoring.mjs';
 
 function parseArgs(argv) {
   const a = { corpus: [], results: null, json: false, match: 'overlap', strictCategory: false, scoreAllCategories: false, split: 'all', failOnRc: false };
   for (let i = 0; i < argv.length; i++) {
     const x = argv[i];
-    if (x === '--corpus') a.corpus.push(argv[++i]);
+    if (x === '--corpus') {
+      // --corpus takes one or more files/globs, until the next option.
+      while (i + 1 < argv.length && !argv[i + 1].startsWith('--')) a.corpus.push(argv[++i]);
+    }
     else if (x === '--results') a.results = argv[++i];
     else if (x === '--json') a.json = true;
     else if (x === '--match') a.match = argv[++i];
@@ -20,9 +24,11 @@ function parseArgs(argv) {
     else if (x === '--score-all-categories') a.scoreAllCategories = true;
     else if (x === '--split') a.split = argv[++i];
     else if (x === '--fail-on-release-critical') a.failOnRc = true;
-    else throw new Error(`unknown argument ${x}`);
+    else if (x.startsWith('--')) throw new Error(`unknown argument ${x}`);
+    else a.corpus.push(x);
   }
   if (!a.corpus.length || !a.results) throw new Error('need --corpus and --results');
+  a.corpus = expandPaths(a.corpus);
   if (!['overlap', 'exact'].includes(a.match)) throw new Error('--match must be overlap or exact');
   if (!['all', 'dev', 'heldout'].includes(a.split)) throw new Error('--split must be all, dev or heldout');
   return a;
@@ -39,6 +45,8 @@ export function formatReport(r) {
   const lines = rows.map((row) => row.map((v, i) => (i === 0 ? String(v).padEnd(widths[i]) : String(v).padStart(widths[i]))).join('  '));
   lines.push('');
   const ex = Object.entries(r.excluded_categories);
+  const ne = Object.entries(r.expected_non_error ?? {});
+  if (ne.length) lines.push(`annotated non-error issues (optional, not scored): ${ne.map(([c, v]) => `${c} ${v.flagged}/${v.expected} flagged`).join(', ')}`);
   if (ex.length) lines.push(`not scored (non-error categories): ${ex.map(([c, v]) => `${c} ${v.predictions} (${v.on_clean_examples} on clean)`).join(', ')}`);
   const splits = Object.entries(r.splits).map(([k, v]) => `${k} ${v}`).join(', ');
   const opts = [`match=${r.options.match}`, `split=${r.options.split}`];

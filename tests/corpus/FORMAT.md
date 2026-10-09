@@ -42,7 +42,7 @@ UTF-16, the same layout the app contract uses, so offsets need no conversion.
   NBSP, emoji, ZWJ sequences and decomposed (NFD) letters are kept verbatim. No
   normalization is applied anywhere in the tools.
 
-## Corpus line (schema version `1.0`)
+## Corpus line (schema version `1.1`; `1.0` lines remain valid)
 
 ```json
 {"schema_version":"1.0","id":"p0-0034","text":"Kupiłem chleb, i mleko.","text_utf16_length":23,
@@ -75,8 +75,8 @@ UTF-16, the same layout the app contract uses, so offsets need no conversion.
 |---|---|---|
 | `start`, `end` | int | UTF-16 range, `0 ≤ start ≤ end ≤ text_utf16_length`. |
 | `original` | string | Must equal `text.slice(start, end)` (`""` for zero-length). Guards against off-by-one ranges. |
-| `category` | `"spelling"` \| `"punctuation"` \| `"grammar"` | The three user-facing categories (PLAN.md §6). |
-| `subcategory` | string | Dotted, starts with the category, e.g. `spelling.o_u`, `spelling.rz_z`, `spelling.ch_h`, `spelling.nie`, `spelling.capitalization`, `spelling.diacritics`, `spelling.typo`, `spelling.compound`, `spelling.reform_2026`, `punctuation.missing_comma`, `punctuation.extra_comma`, `punctuation.spacing`, `punctuation.whitespace`, `punctuation.abbreviation`, `punctuation.quotes`, `grammar.inflection`, `grammar.agreement`, `grammar.comparative`, `grammar.idiom`. Open list. |
+| `category` | `"spelling"` \| `"punctuation"` \| `"grammar"` \| `"style"` | The three error categories (PLAN.md §6), plus `style` (format 1.1+): a style suggestion, not an error (PLAN.md §1). A `style` issue must have `required: false` and its line must use `schema_version` ≥ `1.1`. |
+| `subcategory` | string | Dotted, starts with the category, e.g. `spelling.o_u`, `spelling.rz_z`, `spelling.ch_h`, `spelling.nie`, `spelling.capitalization`, `spelling.diacritics`, `spelling.typo`, `spelling.compound`, `spelling.reform_2026`, `punctuation.missing_comma`, `punctuation.extra_comma`, `punctuation.spacing`, `punctuation.whitespace`, `punctuation.abbreviation`, `punctuation.quotes`, `grammar.inflection`, `grammar.agreement`, `grammar.comparative`, `grammar.idiom`, `punctuation.optional_comma`, `style.pronoun`, `style.colloquial`. Open list. |
 | `fixes` | string[] | Acceptable replacements for `[start, end)`, best first. `""` = delete. `[]` = a warning without a ready fix (PLAN.md §1). |
 | `required` | bool | `false` = optional/acceptable flag: reporting it is neither rewarded nor penalized, missing it is not a miss. |
 | `notes` | string? | Per-issue note. |
@@ -148,15 +148,22 @@ One JSON object per line, one line per corpus example:
 4. **Counts.** Matched required issue → TP (counted under the expected category).
    Unmatched required → FN. Unmatched prediction → FP (under the predicted category).
    Matches to optional issues are neutral.
-5. **Non-error categories.** Predictions whose `category` is a string outside
+5. **Annotated optional and style issues.** `required: false` issues (including every
+   `style` issue) are neutral: an engine that flags them, under any category, gets no
+   TP or FP, and an engine that does not flag them gets no FN. A sentence whose
+   issues are all optional counts as **clean** for the false-positive rate. Use this
+   for "acceptable either way" cases such as an optional comma. The report lists
+   `expected_non_error` (how many annotated `style` issues the engine flagged).
+6. **Non-error categories.** Predictions whose `category` is a string outside
    `spelling` / `punctuation` / `grammar` (e.g. `style`, `other`) are **not scored**:
    they cannot match expected issues and do not count as TP/FP. They are reported per
    category under `excluded_categories` (total, and how many fell on no-issue
    sentences). They **do** count toward the false-positive rate on clean sentences,
-   which is split into `with_error_category_fp` and `with_only_excluded_category`.
+   which is split into `with_error_category_fp` and `with_only_excluded_category`;
+   a style/other prediction that lands on an annotated optional issue is not a false alarm.
    They do not fail a release-critical example. Predictions with no category are still
    scored (as `unknown`). `--score-all-categories` restores the scoring-1.0 behavior.
-6. **Metrics** per category and overall: precision, recall, F1; for TPs with fixes,
+7. **Metrics** per category and overall: precision, recall, F1; for TPs with fixes,
    top-suggestion accuracy and any-suggestion accuracy. Clean set: number and share of
    clean examples with ≥ 1 false positive (PLAN.md target ≤ 2%, report absolute count).
    Release-critical failures are listed by id.
@@ -166,12 +173,13 @@ Scores describe this corpus only, never Polish in general (PLAN.md §10).
 ## Commands
 
 ```sh
-node tests/corpus/tools/validate.mjs tests/corpus/data/*.jsonl tests/corpus/data/heldout/*.jsonl
-node tests/corpus/tools/validate.mjs --engine results.jsonl --corpus tests/corpus/data/*.jsonl
+node tests/corpus/tools/validate.mjs 'tests/corpus/data/**/*.jsonl'
+node tests/corpus/tools/validate.mjs --engine results.jsonl --corpus 'tests/corpus/data/**/*.jsonl'
 # while tuning (dev only):
-node tests/corpus/tools/score.mjs --corpus tests/corpus/data/*.jsonl --results results.jsonl --split dev
+node tests/corpus/tools/score.mjs --corpus 'tests/corpus/data/**/*.jsonl' --results results.jsonl --split dev
 # at milestones:
-node tests/corpus/tools/score.mjs --corpus tests/corpus/data/*.jsonl tests/corpus/data/heldout/*.jsonl --results results.jsonl --split heldout
+node tests/corpus/tools/score.mjs --corpus 'tests/corpus/data/**/*.jsonl' --results results.jsonl --split heldout
+# --corpus takes several files and/or quoted globs (`*`, `?`, `**`) until the next option.
 # options: [--json] [--match exact] [--strict-category] [--score-all-categories] [--fail-on-release-critical]
 node --test tests/corpus/tools/
 ```
@@ -188,7 +196,15 @@ The JSONL file stays the single source of truth; markup is only an input aid.
 
 ## Changelog
 
-* **Corpus format 1.0**: unchanged in phase 1 (no schema change). The `split` field
+* **Corpus format 1.1** (PR #3 review): new `style` category for annotated style
+  issues (always `required: false`, line `schema_version` ≥ 1.1). Older 1.0 lines
+  stay valid. Schema `corpus-example.v1.schema.json` updated.
+* **Scoring 1.2** (PR #3 review): expected non-error issues are always neutral; clean =
+  no required issue; style/other predictions on annotated optional issues are not
+  clean-sentence false alarms; `expected_non_error` in the report. `score.mjs` and
+  `validate.mjs` take several files and globs after `--corpus`.
+
+* **Corpus format 1.0**: unchanged in the first phase-1 commit (no schema change). The `split` field
   existed from the start; phase 1 only assigns `heldout`.
 * **Scoring 1.1** (phase 1): `style`/`other` and any other non-error engine categories
   are reported separately and excluded from precision and recall, but still count
