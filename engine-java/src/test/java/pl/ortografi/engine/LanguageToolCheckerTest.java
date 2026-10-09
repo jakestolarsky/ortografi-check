@@ -258,4 +258,34 @@ class LanguageToolCheckerTest {
     Issue extra = onlyIssueCovering(full.check(delete), delete, ",");
     assertEquals(List.of(""), extra.replacements());
   }
+
+  @Test
+  void nieWithAVerbIsSuggestedSeparatelyFirst() throws Exception {
+    for (String[] c : new String[][] {
+        {"Niewiem, co robić.", "Niewiem", "Nie wiem"},
+        {"Nierozumiem tego zadania.", "Nierozumiem", "Nie rozumiem"},
+        {"Niechcę iść do szkoły.", "Niechcę", "Nie chcę"},
+        {"Nielubię szpinaku.", "Nielubię", "Nie lubię"}}) {
+      Issue i = onlyIssueCovering(checker.check(c[0]), c[0], c[1]);
+      assertEquals(c[2], i.replacements().get(0), i::toString);
+      assertTrue(i.replacements().size() <= SuggestionCap.MAX_REPLACEMENTS);
+    }
+  }
+
+  @Test
+  void nieWordsThatAreNotVerbsAreNotReordered() throws Exception {
+    // Correct words are not flagged; misspelled non-verbs keep LanguageTool's order.
+    for (String t : new String[] {"Niebieski dom.", "Widziałem niedźwiedzia.", "To był niedobry pomysł."}) {
+      assertEquals(List.of(), checker.check(t), t);
+    }
+    for (String[] c : new String[][] {{"Niebieskii dom.", "Niebieskii"},
+        {"Widziałem niedźwiedzai.", "niedźwiedzai"}, {"To niedobrry pomysł.", "niedobrry"}}) {
+      var raw = new org.languagetool.JLanguageTool(
+          org.languagetool.Languages.getLanguageForShortCode("pl-PL")).check(c[0]).stream()
+          .filter(m -> c[0].substring(m.getFromPos(), m.getToPos()).equals(c[1]))
+          .findFirst().orElseThrow().getSuggestedReplacements();
+      Issue i = onlyIssueCovering(checker.check(c[0]), c[0], c[1]);
+      assertEquals(SuggestionCap.cap(raw), i.replacements(), c[0]);
+    }
+  }
 }
