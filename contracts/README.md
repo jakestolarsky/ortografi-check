@@ -22,6 +22,7 @@ Each issue describes the **smallest edit** on the **original** text, with offset
 
 - **Empty replacements delete the whole range:** if every replacement on an issue is `""`, applying that issue deletes `text[start..end)`, whatever the category. The usual extra-comma case is a one-character range with `[""]`. Example: `Był szybki, jak wiatr.` becomes `Był szybki jak wiatr.`; corpus p0-0043 marks `10..11`. The following space stays.
 - **Missing comma:** a zero-length insertion, `start == end`, with replacement `","`. Example: corpus p0-0003 `Wiem że to…` has `4..4` with `","`.
+- **Range equals the replaced text:** an issue's range is exactly the text its fix replaces, never a wider phrase. For agreement errors, underline only the word that changes. Example: in `dwa książki` the range covers `dwa` and the fix is `dwie`; the message names the word it must agree with (e.g. `książki`). This matches the zero-length comma insertion and the empty-replacement deletion rules above. Corpus annotations may mark a wider phrase; the scorer counts a hit when the issue's range lies inside that phrase and applying the fix yields an accepted sentence. That matching rule is test-tooling, not part of the protocol. No schema change.
 
 ## Tooling conventions
 
