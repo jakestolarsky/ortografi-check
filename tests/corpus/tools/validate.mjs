@@ -3,8 +3,10 @@
 // Usage:
 //   node validate.mjs <corpus.jsonl>...
 //   node validate.mjs --engine <results.jsonl> --corpus <corpus.jsonl>...
+//   (results may be corpus result lines or v1 protocol messages; FORMAT.md "Protocol v1 input")
 import { pathToFileURL } from 'node:url';
 import { readJsonl, validateCorpus, validateEngineResult, checkSplitLocation, expandPaths } from './corpus-lib.mjs';
+import { normalizeResultEntries } from './protocol-v1.mjs';
 
 function parseArgs(argv) {
   const a = { corpus: [], engine: null, quiet: false };
@@ -53,8 +55,9 @@ export function main(argv) {
   }
   if (args.engine) {
     const seen = new Set();
-    for (const { line, value } of readJsonl(args.engine)) {
+    for (const { line, value, errors: lineErrs } of normalizeResultEntries(readJsonl(args.engine))) {
       const where = `${args.engine}:${line}`;
+      if (lineErrs.length) { lineErrs.forEach((e) => errors.push(`${where}: ${e}`)); continue; }
       const ex = value && byId.get(value.id);
       if (!ex) errors.push(`${where}: id ${JSON.stringify(value && value.id)} not in corpus`);
       if (value && seen.has(value.id)) errors.push(`${where}: duplicate result for ${value.id}`);
