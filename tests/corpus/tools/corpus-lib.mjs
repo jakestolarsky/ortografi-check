@@ -1,9 +1,14 @@
 // Shared helpers for the Polish quality corpus (format v1). No dependencies.
 // All offsets are UTF-16 code units; JS strings use the same layout.
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 
 export const SUPPORTED_MAJOR = 1;
-export const CATEGORIES = ['spelling', 'punctuation', 'grammar'];
+/** Error categories: scored for precision/recall (PLAN.md §6). */
+export const ERROR_CATEGORIES = ['spelling', 'punctuation', 'grammar'];
+/** Non-error categories (format 1.1+): annotated, never required, not scored (PLAN.md §1). */
+export const NON_ERROR_CATEGORIES = ['style'];
+export const CATEGORIES = [...ERROR_CATEGORIES, ...NON_ERROR_CATEGORIES];
 export const SPLITS = ['dev', 'heldout'];
 export const REVIEW_STATUSES = ['unreviewed', 'verified', 'disputed'];
 export const RESULT_STATUSES = ['complete', 'incomplete', 'error'];
@@ -137,6 +142,11 @@ export function validateExample(ex) {
       if (start === end && iss.fixes.includes('')) errors.push(`${p}: empty fix on a zero-length range is a no-op`);
     }
     if (typeof iss.required !== 'boolean') errors.push(`${p}: required must be boolean`);
+    if (NON_ERROR_CATEGORIES.includes(iss.category)) {
+      if (iss.required !== false) errors.push(`${p}: ${iss.category} issues must have required: false`);
+      const m = VERSION_RE.exec(ex.schema_version ?? '');
+      if (m && Number(m[2]) < 1) errors.push(`${p}: category "${iss.category}" needs schema_version 1.1 or later`);
+    }
     if (iss.notes !== undefined && typeof iss.notes !== 'string') errors.push(`${p}: notes must be a string`);
   });
   if (errors.length) return { errors, warnings };
@@ -202,4 +212,57 @@ export function validateEngineResult(res, example) {
     if (iss.replacements !== undefined && !isStrArr(iss.replacements)) errors.push(`${p}: replacements must be an array of strings`);
   });
   return errors;
+}
+
+/** Held-out examples live under a `heldout/` directory and nowhere else (FORMAT.md "Splits"). */
+export function checkSplitLocation(path, entries) {
+  const inHeldoutDir = /(^|[\\/])heldout[\\/]/.test(path);
+  const want = inHeldoutDir ? 'heldout' : 'dev';
+  return entries
+    .filter(({ value }) => value && value.split !== undefined && value.split !== want)
+    .map(({ line, value }) => `${path}:${line} (${value.id}): split "${value.split}" but file is ${inHeldoutDir ? 'under' : 'outside'} heldout/ (expected "${want}")`);
+}
+
+const globToRe = (seg) => new RegExp(`^${seg.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]')}$`);
+
+/**
+ * Expand file arguments: plain paths pass through; `*`, `?` and `**` are expanded
+ * (sorted) so the documented globs work even when the shell does not expand them.
+ */
+export function expandPaths(patterns) {
+  const out = [];
+  for (const pat of patterns) {
+    if (!/[*?]/.test(pat)) { out.push(pat); continue; }
+    const abs = pat.startsWith('/');
+    const segs = pat.split('/').filter((x, i) => x !== '' || i === 0);
+    let cur = [abs ? '/' : '.'];
+    segs.forEach((seg, i) => {
+      if (abs && i === 0 && seg === '') return;
+      const next = [];
+      for (const dir of cur) {
+        if (seg === '**') {
+          const stack = [dir];
+          while (stack.length) {
+            const d = stack.pop();
+            next.push(d);
+            let ents = [];
+            try { ents = readdirSync(d, { withFileTypes: true }); } catch { /* not a dir */ }
+            for (const e of ents) if (e.isDirectory()) stack.push(join(d, e.name));
+          }
+        } else if (/[*?]/.test(seg)) {
+          let ents = [];
+          try { ents = readdirSync(dir); } catch { /* not a dir */ }
+          const re = globToRe(seg);
+          for (const e of ents) if (re.test(e)) next.push(join(dir, e));
+        } else {
+          next.push(join(dir, seg));
+        }
+      }
+      cur = next;
+    });
+    const files = [...new Set(cur)].filter((f) => existsSync(f) && statSync(f).isFile()).sort();
+    if (files.length === 0) throw new Error(`no files match ${pat}`);
+    out.push(...files);
+  }
+  return [...new Set(out)];
 }

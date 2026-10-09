@@ -114,3 +114,67 @@ test('release-critical clean example fails on any false positive', () => {
   assert.deepEqual(ok.release_critical_failures, []);
   assert.equal(ok.overall.f1, null);
 });
+
+test('style/other predictions are reported apart and excluded from P/R, but count on clean sentences', () => {
+  const corpus = [
+    ex('s', 'Mój wójek.', [iss(4, 9, 'spelling', ['wujek'])]),
+    ex('c', 'Kot śpi na kanapie.', []),
+    ex('d', 'Pies śpi.', []),
+  ];
+  const results = new Map([
+    res('s', [{ start: 4, end: 9, category: 'style', replacements: ['wujek'] }, { start: 0, end: 3, category: 'other', replacements: [] }]),
+    res('c', [{ start: 11, end: 18, category: 'style', replacements: ['sofie'] }]),
+    res('d', [{ start: 0, end: 4, category: 'spelling', replacements: ['Pis'] }]),
+  ]);
+  const r = scoreCorpus(corpus, results);
+  assert.equal(r.categories.style, undefined);
+  assert.equal(r.categories.other, undefined);
+  assert.deepEqual([r.overall.tp, r.overall.fp, r.overall.fn], [0, 1, 1]); // a style hit cannot satisfy a spelling issue
+  assert.deepEqual(r.excluded_categories, { style: { predictions: 2, on_clean_examples: 1 }, other: { predictions: 1, on_clean_examples: 0 } });
+  assert.equal(r.clean_set.with_false_positive, 2);
+  assert.equal(r.clean_set.with_error_category_fp, 1);
+  assert.equal(r.clean_set.with_only_excluded_category, 1);
+  assert.equal(r.clean_set.false_positive_rate, 1);
+
+  const all = scoreCorpus(corpus, results, { scoreAllCategories: true });
+  assert.equal(all.categories.style.fp, 1);
+  assert.equal(all.overall.tp, 1);
+  assert.deepEqual(all.excluded_categories, {});
+});
+
+test('predictions without a category are still scored', () => {
+  const r = scoreCorpus([ex('c', 'Kot śpi.', [])], new Map([res('c', [{ start: 0, end: 3 }])]));
+  assert.equal(r.categories.unknown.fp, 1);
+});
+
+test('report counts examples per split', () => {
+  const r = scoreCorpus([ex('a', 'A.', [], { split: 'dev' }), ex('b', 'B.', [], { split: 'heldout' })], new Map([res('a', []), res('b', [])]), { split: 'all' });
+  assert.deepEqual(r.splits, { dev: 1, heldout: 1 });
+  assert.equal(r.options.split, 'all');
+});
+
+test('expected style issues are neutral; style hits on them do not count against clean sentences', () => {
+  const text = 'Mi się to nie podoba.';
+  const corpus = [ex('m', text, [{ start: 0, end: 2, category: 'style', fixes: ['Mnie'], required: false }])];
+  const flaggedStyle = scoreCorpus(corpus, new Map([res('m', [{ start: 0, end: 2, category: 'style', replacements: ['Mnie'] }])]));
+  assert.deepEqual([flaggedStyle.overall.tp, flaggedStyle.overall.fp, flaggedStyle.overall.fn], [0, 0, 0]);
+  assert.equal(flaggedStyle.clean_set.examples, 1);
+  assert.equal(flaggedStyle.clean_set.with_false_positive, 0);
+  assert.deepEqual(flaggedStyle.expected_non_error, { style: { expected: 1, flagged: 1 } });
+  const flaggedGrammar = scoreCorpus(corpus, new Map([res('m', [{ start: 0, end: 2, category: 'grammar', replacements: ['Mnie'] }])]));
+  assert.deepEqual([flaggedGrammar.overall.tp, flaggedGrammar.overall.fp], [0, 0]);
+  const none = scoreCorpus(corpus, new Map([res('m', [])]));
+  assert.equal(none.overall.fn, 0);
+  assert.deepEqual(none.expected_non_error, { style: { expected: 1, flagged: 0 } });
+  // A style prediction elsewhere on that sentence still counts as a clean-sentence false alarm.
+  const elsewhere = scoreCorpus(corpus, new Map([res('m', [{ start: 14, end: 20, category: 'style', replacements: [] }])]));
+  assert.equal(elsewhere.clean_set.with_false_positive, 1);
+});
+
+test('optional comma: inserting it or not are both fine', () => {
+  const corpus = [ex('o', 'Według mnie to dobry pomysł.', [{ start: 11, end: 11, category: 'punctuation', fixes: [','], required: false }])];
+  for (const issues of [[], [{ start: 11, end: 11, category: 'punctuation', replacements: [','] }]]) {
+    const r = scoreCorpus(corpus, new Map([res('o', issues)]));
+    assert.deepEqual([r.overall.tp, r.overall.fp, r.overall.fn, r.clean_set.with_false_positive], [0, 0, 0, 0]);
+  }
+});

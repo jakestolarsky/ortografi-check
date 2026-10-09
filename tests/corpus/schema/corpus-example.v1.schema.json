@@ -5,36 +5,129 @@
   "description": "One line of tests/corpus/data/*.jsonl. Offsets are UTF-16 code units, end exclusive. Cross-field rules (original == text.slice(start,end), text_utf16_length, corrected_text, no overlaps, unique ids) are enforced by tools/validate.mjs.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "id", "text", "text_utf16_length", "issues", "tags", "split", "release_critical", "needs_human_review", "review_status", "source"],
+  "required": [
+    "schema_version",
+    "id",
+    "text",
+    "text_utf16_length",
+    "issues",
+    "tags",
+    "split",
+    "release_critical",
+    "needs_human_review",
+    "review_status",
+    "source"
+  ],
   "properties": {
-    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
-    "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
-    "text": { "type": "string", "minLength": 1 },
-    "text_utf16_length": { "type": "integer", "minimum": 1 },
-    "issues": { "type": "array", "items": { "$ref": "#/$defs/issue" } },
-    "corrected_text": { "type": "string" },
-    "tags": { "type": "array", "items": { "type": "string" } },
-    "split": { "enum": ["dev", "heldout"] },
-    "release_critical": { "type": "boolean" },
-    "needs_human_review": { "type": "boolean" },
-    "review_status": { "enum": ["unreviewed", "verified", "disputed"] },
-    "source": { "type": "string", "minLength": 1 },
-    "notes": { "type": "string" }
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "text_utf16_length": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "corrected_text": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "split": {
+      "enum": [
+        "dev",
+        "heldout"
+      ]
+    },
+    "release_critical": {
+      "type": "boolean"
+    },
+    "needs_human_review": {
+      "type": "boolean"
+    },
+    "review_status": {
+      "enum": [
+        "unreviewed",
+        "verified",
+        "disputed"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "notes": {
+      "type": "string"
+    }
   },
   "$defs": {
     "issue": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["start", "end", "original", "category", "subcategory", "fixes", "required"],
+      "required": [
+        "start",
+        "end",
+        "original",
+        "category",
+        "subcategory",
+        "fixes",
+        "required"
+      ],
       "properties": {
-        "start": { "type": "integer", "minimum": 0 },
-        "end": { "type": "integer", "minimum": 0 },
-        "original": { "type": "string" },
-        "category": { "enum": ["spelling", "punctuation", "grammar"] },
-        "subcategory": { "type": "string", "pattern": "^(spelling|punctuation|grammar)\\.[a-z0-9_]+(\\.[a-z0-9_]+)*$" },
-        "fixes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-        "required": { "type": "boolean" },
-        "notes": { "type": "string" }
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "original": {
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "spelling",
+            "punctuation",
+            "grammar",
+            "style"
+          ],
+          "description": "style requires schema_version >= 1.1 and required: false"
+        },
+        "subcategory": {
+          "type": "string",
+          "pattern": "^(spelling|punctuation|grammar|style)\\.[a-z0-9_]+(\\.[a-z0-9_]+)*$"
+        },
+        "fixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        }
       }
     }
   }
