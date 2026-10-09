@@ -95,7 +95,7 @@ identical-output smoke test (jlink vs full JDK) on unicode, 1k, 10k and 50k:
 
 The JARs are platform-independent. The "ready" times in CI logs (1.5–2.2 s) come from shared
 runners and are not benchmark data. macOS Intel was not covered (`macos-latest` is arm64).
-CI pins Temurin `21.0.12+101` (= 21.0.12.1+1) and fails if any other build is resolved.
+CI pins Temurin `21.0.12+101.0.LTS` (= 21.0.12.1+1) and fails if any other build is resolved.
 
 A jlinked runtime for the HTTP server was not built (it needs at least `jdk.httpserver` too).
 
