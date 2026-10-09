@@ -18,7 +18,8 @@ fn bundled_engine_finds_the_missing_comma_in_p0_0003() {
     let ready = s.start().expect("bundled engine starts");
     assert_eq!(ready.raw["language"], "pl-PL");
     // Text taken from tests/corpus/data/phase0-starter.jsonl p0-0003.
-    let corpus = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/corpus/data/phase0-starter.jsonl")).unwrap();
+    let root = std::env::var("ORTOGRAFI_SRC_TAURI").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").into());
+    let corpus = std::fs::read_to_string(format!("{root}/../tests/corpus/data/phase0-starter.jsonl")).unwrap();
     let rec: serde_json::Value = corpus.lines().map(|l| serde_json::from_str::<serde_json::Value>(l).unwrap())
         .find(|r| r["id"] == "p0-0003").unwrap();
     let m = s.check(json!({"protocol":1,"type":"check","id":"smoke","docVersion":1,"settingsVersion":1,"text":rec["text"]}));
