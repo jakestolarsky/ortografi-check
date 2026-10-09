@@ -72,3 +72,29 @@ test('extra-comma deletions cover only the comma, fix "", following space kept (
   }
   assert.deepEqual(bad, []);
 });
+
+test('typographic space edits are minimal (FORMAT.md "Space edits"): extra space = 1-char deletion, missing space = zero-length " "', () => {
+  const bad = [];
+  for (const e of all) for (const i of e.issues) {
+    if (i.category !== 'punctuation' || i.fixes.length !== 1) continue; // word splits/joins are spelling: whole-word
+    const o = e.text.slice(i.start, i.end);
+    const f = i.fixes[0];
+    const removesOneSpace = f.length === o.length - 1 && [...o].some((_, j) => o[j] === ' ' && o.slice(0, j) + o.slice(j + 1) === f);
+    const addsOneSpace = f.length === o.length + 1 && [...f].some((_, j) => f[j] === ' ' && f.slice(0, j) + f.slice(j + 1) === o);
+    if (removesOneSpace && !(o === ' ' && f === '')) bad.push(`${e.id} deletion ${i.start}-${i.end}`);
+    if (addsOneSpace && !(o === '' && f === ' ' && i.start === i.end)) bad.push(`${e.id} insertion ${i.start}-${i.end}`);
+  }
+  assert.deepEqual(bad, []);
+  const dbl = all.find((e) => e.id === 'p0-0044');
+  assert.deepEqual([dbl.issues[0].start, dbl.issues[0].end, dbl.issues[0].fixes], [4, 5, ['']]);
+  assert.equal(dbl.text.slice(3, 5), '  '); // second of the two spaces
+});
+
+test('words written apart or together stay whole-word spelling replacements', () => {
+  const byId = new Map(all.map((e) => [e.id, e]));
+  for (const [id, original] of [['p0-0015', 'nie łatwy'], ['p0-0016', 'Niewiem'], ['p1-0105', 'Na przeciwko'], ['p1-0104', 'zpowrotem']]) {
+    const i = byId.get(id).issues[0];
+    assert.equal(i.category, 'spelling', id);
+    assert.equal(i.original, original, id);
+  }
+});
