@@ -9,8 +9,10 @@ import java.util.List;
  * the insertion point with the inserted text (",") as the replacement.
  *
  * <p>Applied only when every replacement inserts at the same point without changing the covered
- * text. The point is after the longest common prefix, so it is deterministic. A point inside a
- * surrogate pair or before a combining mark is never produced; such issues stay unchanged.
+ * text, and only at a word boundary: an insertion with a letter or digit on both sides
+ * ("Poszłem" → "Poszedłem", "wogóle" → "w ogóle") is a word correction and keeps its range. The
+ * point is after the longest common prefix, so it is deterministic. A point inside a surrogate
+ * pair or before a combining mark is never produced; such issues stay unchanged.
  * Runs on the original text (after {@link NormalizingChecker}), so offsets are original UTF-16.
  */
 final class InsertionNarrowingChecker implements Checker {
@@ -55,9 +57,14 @@ final class InsertionNarrowingChecker implements Checker {
   private static boolean isSafePoint(String text, int at) {
     if (at <= 0 || at >= text.length()) return true;
     if (Character.isLowSurrogate(text.charAt(at)) && Character.isHighSurrogate(text.charAt(at - 1))) return false;
-    int type = Character.getType(text.codePointAt(at));
-    return type != Character.NON_SPACING_MARK && type != Character.COMBINING_SPACING_MARK
-        && type != Character.ENCLOSING_MARK;
+    int after = text.codePointAt(at);
+    int type = Character.getType(after);
+    if (type == Character.NON_SPACING_MARK || type == Character.COMBINING_SPACING_MARK
+        || type == Character.ENCLOSING_MARK) {
+      return false;
+    }
+    // Inside a word ("Posz|łem", "w|ogóle") the fix is a word correction: keep the word range.
+    return !(Character.isLetterOrDigit(text.codePointBefore(at)) && Character.isLetterOrDigit(after));
   }
 
   @Override
