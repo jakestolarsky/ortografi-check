@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <!-- Reference option (PLAN.md section 2): the official LanguageTool HTTP server, 6.8.
+       There is no 6.8 desktop ZIP on languagetool.org (latest listed ZIP is 6.6), so the
+       server is assembled from the official Maven Central artifacts. Minimal bootable variant: language-all excluded, language-pl added. The server's static CommonWordsDetector hard-requires es, ca and pt, so those three modules are added too (pl alone fails at startup with ExceptionInInitializerError). -->
+  <groupId>pl.ortografi.bench</groupId>
+  <artifactId>lt-http-server-minimal</artifactId>
+  <version>6.8</version>
+  <packaging>pom</packaging>
+  <dependencies>
+    <dependency>
+      <groupId>org.languagetool</groupId>
+      <artifactId>languagetool-server</artifactId>
+      <version>6.8</version>
+      <exclusions><exclusion><groupId>org.languagetool</groupId><artifactId>language-all</artifactId></exclusion></exclusions>
+    </dependency>
+    <dependency><groupId>org.languagetool</groupId><artifactId>language-pl</artifactId><version>6.8</version></dependency>
+    <dependency><groupId>org.languagetool</groupId><artifactId>language-es</artifactId><version>6.8</version></dependency>
+    <dependency><groupId>org.languagetool</groupId><artifactId>language-ca</artifactId><version>6.8</version></dependency>
+    <dependency><groupId>org.languagetool</groupId><artifactId>language-pt</artifactId><version>6.8</version></dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.8.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>copy-dependencies</goal></goals>
+            <configuration>
+              <includeScope>runtime</includeScope>
+              <outputDirectory>${project.build.directory}/lib</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
