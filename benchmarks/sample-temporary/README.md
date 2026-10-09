@@ -8,4 +8,4 @@ punctuation expert, and must not be used to judge quality.
 Replace with the Ortografi Corpus once its format is delivered (PLAN.md section 10).
 
 - `pl-1k.txt` — about 1,000 UTF-16 code units, includes Polish diacritics and one emoji.
-- `pl-10k.txt` — about 10,000 UTF-16 code units, built by `make_10k.py` from varied paragraphs.
+- `pl-10k.txt` — about 10,000 UTF-16 code units, and `pl-50k.txt` — about 50,000, both built by `make_samples.py` from varied paragraphs (the 50k text is under the 100,000-unit limit).
