@@ -221,4 +221,17 @@ class LanguageToolCheckerTest {
   void emptyTextHasNoIssues() throws Exception {
     assertEquals(List.of(), checker.check(""));
   }
+
+  @Test
+  void realEngineNumberUnitSpacingIsAMinimalInsertion() throws Exception {
+    Checker full = new MinimalEditChecker(new NormalizingChecker(checker));
+    String year = "Umowę podpisano w 2025r.";
+    Issue y = onlyIssueCovering(full.check(year), year, "");
+    assertEquals(22, y.start());
+    assertEquals(List.of(" "), y.replacements());
+    String zl = "To kosztuje 50zł.";
+    Issue z = onlyIssueCovering(full.check(zl), zl, "");
+    assertEquals(14, z.start());
+    assertEquals(List.of(" "), z.replacements());
+  }
 }
