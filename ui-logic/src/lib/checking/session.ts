@@ -94,12 +94,16 @@ export class CheckSession {
     if (id !== this.latestId || docVersion !== this._version || settingsVersion !== this._settingsVersion) {
       return; // late answer for an older request: never replaces newer state
     }
-    if (res && res.type === 'result' && res.id === id && res.docVersion === docVersion
-      && res.settingsVersion === settingsVersion) {
+    if (!res) { // transport failure for the current request
+      this.set({ status: 'incomplete', issues: [], resultVersion: null, errorCode: 'ENGINE_ERROR' });
+      return;
+    }
+    // Both results and errors must echo the id and versions of the current request (contracts v1).
+    if (res.id !== id || res.docVersion !== docVersion || res.settingsVersion !== settingsVersion) return;
+    if (res.type === 'result') {
       this.set({ status: 'complete', issues: res.issues, resultVersion: docVersion, errorCode: null });
     } else {
-      const code = res && res.type === 'error' ? res.code : 'ENGINE_ERROR';
-      this.set({ status: 'incomplete', issues: [], resultVersion: null, errorCode: code });
+      this.set({ status: 'incomplete', issues: [], resultVersion: null, errorCode: res.code });
     }
   }
 

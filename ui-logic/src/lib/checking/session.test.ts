@@ -15,11 +15,11 @@ class ControlledEngine implements Engine {
       settingsVersion: req.settingsVersion, engineVersion: '6.8', status: 'complete', issues,
     });
   }
-  fail(i: number, code: 'TIMEOUT' | 'ENGINE_ERROR' | 'TEXT_TOO_LONG') {
-    resolve(this.pending[i]);
-    function resolve(p: { req: CheckRequest; resolve: (r: CheckResponse) => void }) {
-      p.resolve({ protocol: 1, type: 'error', id: p.req.id, code, detail: 'x' });
-    }
+  fail(i: number, code: 'TIMEOUT' | 'ENGINE_ERROR' | 'TEXT_TOO_LONG',
+    versions: { docVersion?: number; settingsVersion?: number } = {}) {
+    const { req, resolve } = this.pending[i];
+    resolve({ protocol: 1, type: 'error', id: req.id, docVersion: req.docVersion,
+      settingsVersion: req.settingsVersion, ...versions, code, detail: 'x' });
   }
 }
 
@@ -128,6 +128,61 @@ describe('CheckSession versioning', () => {
     engine.respond(0, []);
     await flush();
     expect(seen).toEqual(['idle', 'checking', 'complete']);
+  });
+});
+
+describe('CheckSession errors carry versions (contracts v1)', () => {
+  it('a late TIMEOUT for an older docVersion does not mark the newer document incomplete', async () => {
+    const engine = new ControlledEngine();
+    const s = new CheckSession(engine, 'a');
+    s.check();
+    s.setText('b');
+    s.check();
+    engine.fail(0, 'TIMEOUT');
+    await flush();
+    expect(s.state.status).toBe('checking');
+    engine.respond(1, []);
+    await flush();
+    expect(s.state.status).toBe('complete');
+  });
+
+  it('a late error for an older settingsVersion does not mark the current check incomplete', async () => {
+    const engine = new ControlledEngine();
+    const s = new CheckSession(engine, 'a');
+    s.check();
+    s.bumpSettings();
+    s.check();
+    engine.fail(0, 'ENGINE_ERROR');
+    await flush();
+    expect(s.state.status).toBe('checking');
+  });
+
+  it('ignores an error whose own docVersion/settingsVersion do not match the current document', async () => {
+    const engine = new ControlledEngine();
+    const s = new CheckSession(engine, 'a');
+    s.check();
+    engine.fail(0, 'TIMEOUT', { docVersion: s.version - 1 });
+    await flush();
+    expect(s.state.status).toBe('checking');
+    expect(s.state.errorCode).toBeNull();
+  });
+
+  it('ignores an error whose settingsVersion is older than the current settings', async () => {
+    const engine = new ControlledEngine();
+    const s = new CheckSession(engine, 'a');
+    s.check();
+    engine.fail(0, 'TIMEOUT', { settingsVersion: s.settingsVersion - 1 });
+    await flush();
+    expect(s.state.status).toBe('checking');
+  });
+
+  it('a matching error marks the current document incomplete', async () => {
+    const engine = new ControlledEngine();
+    const s = new CheckSession(engine, 'a');
+    s.check();
+    engine.fail(0, 'TIMEOUT');
+    await flush();
+    expect(s.state).toMatchObject({ status: 'incomplete', errorCode: 'TIMEOUT' });
   });
 });
 

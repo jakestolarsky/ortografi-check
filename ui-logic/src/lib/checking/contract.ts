@@ -50,6 +50,9 @@ export interface ErrorMessage {
   protocol: 1;
   type: 'error';
   id: string | null;
+  /** Present (with settingsVersion) when the error answers a `check`: echoes that check's versions. */
+  docVersion?: number;
+  settingsVersion?: number;
   code: ErrorCode;
   detail: string;
   limit?: number;
