@@ -35,7 +35,30 @@ async function started() {
   return engine;
 }
 
+const order = () => h.invoke.mock.calls.map(([c]) => c);
+
 describe('TauriEngine', () => {
+  it('calls engine_reset_session on load, before engine_status and any check', async () => {
+    const engine = await started();
+    engine.check({ protocol: 1, type: 'check', id: 'c1', docVersion: 1, settingsVersion: 1, text: 'a' });
+    expect(order()).toEqual(['engine_reset_session', 'engine_status', 'engine_check']);
+  });
+
+  it('accepts the shared EngineStatus IPC example', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const ex = JSON.parse(readFileSync(join(__dirname, '../../../contracts/v1/examples/ipc/engine-status.json'), 'utf8'));
+    const engine = await started();
+    emit('engine://status', ex);
+    expect(engine.status).toBe(ex.state);
+  });
+
+  it('ignores an unknown status value', async () => {
+    const engine = await started();
+    emit('engine://status', { state: 'exploded' });
+    expect(engine.status).toBe('starting');
+  });
+
   it('fetches the initial status once and follows engine://status', async () => {
     const engine = await started();
     const seen: string[] = [];
@@ -147,6 +170,64 @@ describe('connectEngine with CheckSession', () => {
     emit('engine://status', { state: 'ready' });
     session.check();
     expect(ctl.canRetry()).toBe(false);
+  });
+});
+
+describe('README failure contract (PR #9)', () => {
+  async function setup(text = 'Ala ma kota.') {
+    const engine = await started();
+    const session = new CheckSession(engine, text);
+    return { engine, session, ctl: connectEngine(session, engine) };
+  }
+
+  it('check right after retry: engine_retry resolves (state starting), check is queued and answered at ready', async () => {
+    const { session, ctl } = await setup();
+    session.check();
+    emit('engine://message', error(checks()[0], 'ENGINE_UNAVAILABLE'));
+    emit('engine://status', { state: 'unavailable' });
+    await flush();
+    h.invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'engine_retry') emit('engine://status', { state: 'starting' }); // synchronous per README
+    });
+    await ctl.retry();
+    expect(order().slice(-2)).toEqual(['engine_retry', 'engine_check']);
+    expect(session.state.status).toBe('checking');
+    emit('engine://status', { state: 'ready' });
+    emit('engine://status', { state: 'busy' });
+    emit('engine://message', result(checks()[1]));
+    emit('engine://status', { state: 'ready' });
+    await flush();
+    expect(session.state.status).toBe('complete');
+    expect(checks()).toHaveLength(2);
+  });
+
+  it('failed running check gets one stale error; the waiting newer check is replayed by Rust, not re-sent', async () => {
+    const { session } = await setup('Ala ma kotaa.');
+    emit('engine://status', { state: 'ready' });
+    session.check();
+    const [a] = checks();
+    session.setText('Ala ma kota.');
+    session.check(); // waits in Rust's queue
+    const b = checks()[1];
+    emit('engine://message', error(a, 'TIMEOUT')); // older version: Rust drops it; ignored even if it arrives
+    emit('engine://status', { state: 'restarting' });
+    emit('engine://status', { state: 'ready' });
+    await flush();
+    expect(session.state.status).toBe('checking');
+    emit('engine://message', result(b));
+    await flush();
+    expect(session.state.status).toBe('complete');
+    expect(checks()).toHaveLength(2);
+  });
+
+  it('a status event may arrive after the message (no ordering)', async () => {
+    const { session } = await setup();
+    session.check();
+    emit('engine://message', result(checks()[0]));
+    await flush();
+    emit('engine://status', { state: 'ready' });
+    expect(session.state.status).toBe('complete');
+    expect(checks()).toHaveLength(1);
   });
 });
 

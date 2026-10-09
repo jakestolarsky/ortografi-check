@@ -1,10 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import type { CheckRequest } from '$lib/protocol';
+import type { CheckRequest, EngineStatus } from '$lib/protocol';
 import type { CheckResponse, Engine } from './engine';
 
-export type EngineState = 'starting' | 'ready' | 'busy' | 'restarting' | 'unavailable';
-const STATES: readonly EngineState[] = ['starting', 'ready', 'busy', 'restarting', 'unavailable'];
+export type EngineState = EngineStatus['state'];
+// Exhaustive by construction: adding a state to the schema fails typecheck here.
+const STATE_SET: Record<EngineState, true> = { starting: true, ready: true, busy: true, restarting: true, unavailable: true };
+const STATES = Object.keys(STATE_SET) as EngineState[];
 
 /**
  * Engine over Tauri IPC (contracts/README.md, Desktop IPC): `engine_check` returns at once and
@@ -22,8 +24,10 @@ export class TauriEngine implements Engine {
   static async start(): Promise<TauriEngine> {
     const e = new TauriEngine();
     await listen<CheckResponse>('engine://message', (ev) => e.receive(ev.payload));
-    await listen<{ state: EngineState }>('engine://status', (ev) => e.setStatus(ev.payload?.state));
-    const initial = await invoke<{ state: EngineState }>('engine_status');
+    await listen<EngineStatus>('engine://status', (ev) => e.setStatus(ev.payload?.state));
+    // A WebView reload restarts docVersion at 1: clear Rust's stale filter first (contracts README).
+    await invoke('engine_reset_session');
+    const initial = await invoke<EngineStatus>('engine_status');
     e.setStatus(initial?.state);
     return e;
   }
