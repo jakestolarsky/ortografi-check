@@ -58,6 +58,50 @@ class NumeralRulesTest {
     assertFix("ORTOGRAFI_NUM_M1_REVERSE", "Przyjechało sześciu turystek z Niemiec.", "sześciu", "sześć");
   }
 
+
+  @Test
+  void dwieWithANonFeminineNounBecomesDwa() throws Exception {
+    assertFix("ORTOGRAFI_NUM_DWIE_NF", "Przed domem stały dwie samochody.", "dwie", "dwa");
+    assertFix("ORTOGRAFI_NUM_DWIE_NF", "Obie okna były otwarte na oścież.", "Obie", "Oba");
+  }
+
+  @Test
+  void twoToFourWithAMasculinePersonalNominativeTakeTheDwajForm() throws Exception {
+    assertFix("ORTOGRAFI_NUM_M1_NOM", "Dwa żołnierze stali przy bramie.", "Dwa", "Dwaj");
+    assertFix("ORTOGRAFI_NUM_M1_NOM", "Wczoraj trzy lekarze dyżurowali.", "trzy", "trzej");
+  }
+
+  @Test
+  void twoToFourTakeANominativeNotAGenitivePlural() throws Exception {
+    assertFix("ORTOGRAFI_NUM_GEN_AFTER_2_4", "Na półce stoją cztery talerzy.", "talerzy", "talerze");
+    assertFix("ORTOGRAFI_NUM_GEN_AFTER_2_4", "Kupiłem dwa zeszytów w kratkę.", "zeszytów", "zeszyty");
+  }
+
+  @Test
+  void collectiveNounsTakeACollectiveNumeral() throws Exception {
+    assertFix("ORTOGRAFI_NUM_COLLECTIVE", "Sąsiedzi mają trzy dzieci.", "trzy", "troje");
+    assertFix("ORTOGRAFI_NUM_COLLECTIVE", "Oba rodzice czekali przed szkołą.", "Oba", "Oboje");
+  }
+
+  @Test
+  void reflexiveAndOtherIntransitiveVerbsBeforeANumeralSubject() throws Exception {
+    assertFix("ORTOGRAFI_NUM_VERB_PL", "Do chóru zapisali się sześć dziewczynek.", "zapisali", "zapisało");
+    assertFix("ORTOGRAFI_NUM_VERB_PL", "Z obozu wrócili siedem harcerek.", "wrócili", "wróciło");
+  }
+
+  @Test
+  void oneIssueWhenTheNumeralAndTheVerbAreBothWrong() throws Exception {
+    assertFix("ORTOGRAFI_NUM_M1", "Sześć kierowców spóźnili się na odprawę.", "Sześć", "Sześciu");
+  }
+
+  @Test
+  void messagesNameTheAgreeingWord() throws Exception {
+    Issue i = ours("Kupiłam dwa koszule.").get(0);
+    assertTrue(i.message().contains("„koszule”"), i.message());
+    Issue v = ours("Osiem osób przyszli na próbę.").get(0);
+    assertTrue(v.message().contains("osób”"), v.message());
+  }
+
   @Test
   void correctNumeralPhrasesAreNotFlagged() throws Exception {
     for (String ok : List.of(
@@ -65,7 +109,12 @@ class NumeralRulesTest {
         "Dwaj panowie rozmawiali.", "Dwóch studentów zdało egzamin.", "Pięciu chłopców przyszło na trening.",
         "Pięć osób przyszło.", "Kilka osób czekało.", "Widzieli pięć osób na ulicy.", "Dwa razy dziennie.",
         "Zabrakło mi pięciu złotych.", "Z pięciu kandydatów dwaj przyszli.", "Pięć lat temu przyjechali do Polski.",
-        "Czekali pięć godzin.", "Cztery dni padało.", "Oboje rodzice przyszli.")) {
+        "Czekali pięć godzin.", "Cztery dni padało.", "Oboje rodzice przyszli.",
+        "Na wyspie żyje pięć innych gatunków ptaków.", "Dwa koty spały na kanapie.", "Trzej żołnierze stali.",
+        "Dwoje dzieci bawiło się w piasku.", "Cztery talerze stoją na stole.", "Dwa z tych kotów są moje.",
+        "Dwie doniczki stały na parapecie.", "Obaj bracia przyszli.", "Kupili trzy kilogramy jabłek.",
+        "Dwa lata temu wrócili z Kanady.", "Czworo uczniów zdało.", "Zjedli pięć ciastek.",
+        "Spotkali się z pięcioma kolegami.", "Trzy dni temu przyjechali.", "Mam dwa rowery i trzy hulajnogi.")) {
       assertEquals(List.of(), ours(ok), ok);
     }
   }

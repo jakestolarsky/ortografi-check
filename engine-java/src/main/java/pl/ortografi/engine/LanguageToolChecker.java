@@ -97,7 +97,28 @@ public final class LanguageToolChecker implements Checker {
               PlainMessage.of(m.getMessage()),
               List.copyOf(m.getSuggestedReplacements())));
     }
-    return issues;
+    return oneIssuePerNumeralPhrase(issues, text);
+  }
+
+  /**
+   * When a numeral rule and the numeral-subject verb rule hit the same phrase (no sentence end
+   * between them), keep only the numeral issue: one error, one issue. Fixing the numeral and
+   * re-checking still reports the verb if it is wrong.
+   */
+  static List<Issue> oneIssuePerNumeralPhrase(List<Issue> issues, String text) {
+    List<Issue> numerals = issues.stream()
+        .filter(i -> i.ruleId().startsWith("ORTOGRAFI_NUM_") && !i.ruleId().equals("ORTOGRAFI_NUM_VERB_PL"))
+        .toList();
+    if (numerals.isEmpty()) return issues;
+    List<Issue> out = new ArrayList<>(issues.size());
+    for (Issue i : issues) {
+      boolean samePhrase = i.ruleId().equals("ORTOGRAFI_NUM_VERB_PL") && numerals.stream().anyMatch(n -> {
+        int from = Math.min(n.end(), i.end()), to = Math.max(n.start(), i.start());
+        return from > to || !text.substring(from, to).matches("(?s).*[.!?;].*");
+      });
+      if (!samePhrase) out.add(i);
+    }
+    return out;
   }
 
   @Override
