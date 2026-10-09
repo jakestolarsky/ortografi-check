@@ -84,3 +84,15 @@ test('score.mjs rejects duplicate v1 answers for one example and mixed-format fi
   const mixed = node('score.mjs', ['--corpus', starter, '--results', tmp([result('corpus-p0-0061', []), { schema_version: '1.0', id: 'p0-0003', status: 'complete', issues: [] }]), '--json']);
   assert.equal(mixed.status, 0, mixed.stderr);
 });
+
+test('regression p1-0206: v1 deletion of the period in "Mgr." (3..4, "") is accepted and scored', () => {
+  const p1 = join(here, '..', 'data', 'phase1-dev.jsonl');
+  const line = result('corpus-p1-0206', [issue(3, 4, [''], { ruleId: 'SKROTY_BEZ_KROPKI', category: 'spelling', engineCategory: 'SPELLING', issueType: 'misspelling' })]);
+  const f = tmp([line]);
+  const v = node('validate.mjs', ['--engine', f, '--corpus', p1]);
+  assert.equal(v.status, 0, v.stderr);
+  const s = node('score.mjs', ['--corpus', p1, '--results', f, '--json']);
+  assert.equal(s.status, 0, s.stderr);
+  const ex = JSON.parse(s.stdout).per_example.find((e) => e.id === 'p1-0206');
+  assert.deepEqual([ex.status, ex.fp, ex.fn, ex.top_suggestion_misses, ex.passed], ['complete', 0, 0, 0, true]);
+});
