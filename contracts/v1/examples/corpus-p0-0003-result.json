@@ -1,0 +1,1 @@
+{"protocol":1,"type":"result","id":"corpus-p0-0003","docVersion":1,"settingsVersion":1,"engineVersion":"6.8","status":"complete","analysisMs":10,"issues":[{"start":4,"end":4,"ruleId":"BRAK_PRZECINKA_ZE","category":"punctuation","engineCategory":"PUNCTUATION","issueType":"typographical","message":"Brak przecinka przed „że”.","replacements":[","]}]}

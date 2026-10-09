@@ -7,7 +7,6 @@ on:
     paths-ignore:
       - 'engine-java/**'
       - 'benchmarks/**'
-      - 'tests/corpus/**'
       - 'docs/**'
       - '**/*.md'
   workflow_dispatch:
@@ -36,7 +35,7 @@ jobs:
         run: pnpm build
 
   tauri-check:
-    name: src-tauri (cargo check)
+    name: src-tauri (cargo check, test)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -54,3 +53,38 @@ jobs:
       - name: cargo check
         working-directory: src-tauri
         run: cargo check --locked
+      - name: cargo test (engine supervisor against tests/fixtures/fake_engine.py)
+        working-directory: src-tauri
+        run: cargo test --locked
+
+  contracts:
+    name: contracts (codegen drift, examples)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Pinned so rustfmt output (and therefore the generated file) is stable.
+      - uses: dtolnay/rust-toolchain@1.85.1
+        with:
+          components: rustfmt
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-typify
+          key: cargo-typify-0.5.0-${{ runner.os }}-rust-1.85.1
+      - name: Install cargo-typify 0.5.0
+        run: command -v cargo-typify || cargo install cargo-typify@0.5.0 --locked
+      - name: Regenerate and check for drift
+        run: |
+          contracts/generate.sh
+          git diff --exit-code -- contracts/ || { echo "::error::generated contracts are stale; run contracts/generate.sh"; exit 1; }
+      - name: Examples validate (ajv) and match corpus
+        run: pnpm exec vitest run contracts/
+      - name: Rust types deserialize every example
+        working-directory: contracts/rust
+        run: cargo test --locked
