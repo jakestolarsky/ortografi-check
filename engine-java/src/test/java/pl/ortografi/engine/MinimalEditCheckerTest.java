@@ -154,6 +154,15 @@ class MinimalEditCheckerTest {
   }
 
   @Test
+  void missingSpaceAfterPunctuationIsAZeroLengthInsertion() throws Exception {
+    // COMMA_PARENTHESIS_WHITESPACE shape: ",co" 5..8 -> ", co" (dev p1-0210), as before this PR.
+    Issue out = narrow("Cześć,co słychać?", issue(5, 8, ", co")).get(0);
+    assertEquals(6, out.start());
+    assertEquals(6, out.end());
+    assertEquals(List.of(" "), out.replacements());
+  }
+
+  @Test
   void differentEditsAcrossReplacementsLeaveTheIssueUnchanged() throws Exception {
     Issue two = issue(13, 16, " i", ", oraz");
     assertEquals(two, narrow("Kupiłem chleb, i mleko.", two).get(0));
