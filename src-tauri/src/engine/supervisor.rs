@@ -10,6 +10,10 @@
 //! (consecutive). Timeouts restart the engine but do not count there; instead
 //! `max_consecutive_timeouts` timeouts with no successful result in between make the engine
 //! unavailable. Any successful result resets both counters. `reset()` is the manual retry.
+//!
+//! After a failure the engine is respawned in the background immediately (with backoff).
+//! The failed check gets exactly one error and is never retried; a newest waiting check is
+//! kept and sent once the engine is ready.
 
 use super::protocol::{error_for_check, parse_line, parse_value, Message};
 use std::io::{BufRead, BufReader, Write};
@@ -108,9 +112,16 @@ struct Inner {
     crashes: u32,
     timeouts: u32,
     unavailable: bool,
+    /// Set by shutdown(): no more (re)spawns.
+    closed: bool,
 }
 
+/// Public handle; the shared core is also owned by background respawn threads.
 pub struct Supervisor {
+    core: Arc<Core>,
+}
+
+struct Core {
     cfg: EngineConfig,
     inner: Mutex<Inner>,
     state: Mutex<EngineState>,
@@ -135,13 +146,67 @@ impl Supervisor {
 
     fn build(cfg: EngineConfig, listener: Option<StatusListener>) -> Self {
         Self {
-            cfg,
-            inner: Mutex::new(Inner::default()),
-            state: Mutex::new(EngineState::Starting),
-            listener,
-            newest: AtomicU64::new(0),
+            core: Arc::new(Core {
+                cfg,
+                inner: Mutex::new(Inner::default()),
+                state: Mutex::new(EngineState::Starting),
+                listener,
+                newest: AtomicU64::new(0),
+            }),
         }
     }
+
+    /// Current state; never blocks on a running check.
+    pub fn state(&self) -> EngineState {
+        self.core.state()
+    }
+
+    /// Start the engine now (the app does this in the background at launch).
+    pub fn start(&self) -> Result<Message, String> {
+        let mut g = self.core.inner.lock().unwrap();
+        self.core.ensure_running(&mut g)?;
+        Ok(g.running.as_ref().unwrap().ready.clone())
+    }
+
+    /// Manual retry after the engine became unavailable.
+    pub fn reset(&self) {
+        let mut g = self.core.inner.lock().unwrap();
+        g.unavailable = false;
+        g.crashes = 0;
+        g.timeouts = 0;
+        if g.running.is_none() {
+            self.core.set_state(EngineState::Restarting);
+        }
+    }
+
+    /// Queue a check, keeping only the newest waiting one (PLAN section 4): if a newer
+    /// check is submitted while this one waits for the engine, this one is never sent and
+    /// `None` is returned. A check already running is not interrupted. A waiting check is
+    /// also kept across a failure of the running one and sent once the engine is respawned.
+    pub fn submit(&self, request: serde_json::Value) -> Option<Message> {
+        let seq = self.core.newest.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut g = self.core.inner.lock().unwrap();
+        if self.core.newest.load(Ordering::SeqCst) != seq {
+            return None;
+        }
+        Some(Core::check_locked(&self.core, &mut g, request))
+    }
+
+    /// Run one check now (waiting for any running one) and return the engine's answer or a
+    /// Rust-side error answering the same check. A failed check gets exactly one error and
+    /// is never retried by Rust. Never panics on engine misbehaviour.
+    pub fn check(&self, request: serde_json::Value) -> Message {
+        let mut g = self.core.inner.lock().unwrap();
+        Core::check_locked(&self.core, &mut g, request)
+    }
+
+    /// Send `shutdown` and wait briefly; kill if the process does not exit. Final.
+    pub fn shutdown(&self) {
+        self.core.shutdown()
+    }
+}
+
+impl Core {
 
     /// Current state; never blocks on a running check.
     pub fn state(&self) -> EngineState {
@@ -164,44 +229,8 @@ impl Supervisor {
         }
     }
 
-    /// Start the engine now (the app does this in the background at launch).
-    pub fn start(&self) -> Result<Message, String> {
-        let mut g = self.inner.lock().unwrap();
-        self.ensure_running(&mut g)?;
-        Ok(g.running.as_ref().unwrap().ready.clone())
-    }
-
-    /// Manual retry after the engine became unavailable.
-    pub fn reset(&self) {
-        let mut g = self.inner.lock().unwrap();
-        g.unavailable = false;
-        g.crashes = 0;
-        g.timeouts = 0;
-        if g.running.is_none() {
-            self.set_state(EngineState::Restarting);
-        }
-    }
-
-    /// Queue a check, keeping only the newest waiting one (PLAN section 4): if a newer
-    /// check is submitted while this one waits for the engine, this one is never sent and
-    /// `None` is returned. A check already running is not interrupted.
-    pub fn submit(&self, request: serde_json::Value) -> Option<Message> {
-        let seq = self.newest.fetch_add(1, Ordering::SeqCst) + 1;
-        let mut g = self.inner.lock().unwrap();
-        if self.newest.load(Ordering::SeqCst) != seq {
-            return None;
-        }
-        Some(self.check_locked(&mut g, request))
-    }
-
-    /// Run one check now (waiting for any running one) and return the engine's answer or a
-    /// Rust-side error answering the same check. Never panics on engine misbehaviour.
-    pub fn check(&self, request: serde_json::Value) -> Message {
-        let mut g = self.inner.lock().unwrap();
-        self.check_locked(&mut g, request)
-    }
-
-    fn check_locked(&self, g: &mut Inner, request: serde_json::Value) -> Message {
+    fn check_locked(this: &Arc<Self>, g: &mut Inner, request: serde_json::Value) -> Message {
+        let core = this;
         let req = match parse_value(request) {
             Ok(m) if m.kind() == "check" => m,
             _ => {
@@ -210,18 +239,18 @@ impl Supervisor {
                 return parse_value(raw).unwrap();
             }
         };
-        if let Err(d) = self.ensure_running(g) {
+        if let Err(d) = core.ensure_running(g) {
             return error_for_check("ENGINE_UNAVAILABLE", &req, &d);
         }
-        self.set_state(EngineState::Busy);
+        core.set_state(EngineState::Busy);
         let text_len = req.raw["text"].as_str().map_or(0, |t| t.encode_utf16().count());
         let run = g.running.as_mut().unwrap();
-        let limit = self.cfg.check_timeout_for(text_len, run.first_check);
+        let limit = core.cfg.check_timeout_for(text_len, run.first_check);
         run.first_check = false;
         let mut line = serde_json::to_string(&req.raw).unwrap();
         line.push('\n');
         if run.stdin.write_all(line.as_bytes()).and_then(|_| run.stdin.flush()).is_err() {
-            self.failed(g, Failure::Crash);
+            Core::failed(core, g, Failure::Crash);
             return error_for_check("ENGINE_UNAVAILABLE", &req, "The engine process exited.");
         }
         match run.lines.recv_timeout(limit) {
@@ -229,30 +258,31 @@ impl Supervisor {
                 Ok(m) if answers(&m, &req) => {
                     g.crashes = 0;
                     g.timeouts = 0;
-                    self.set_state(EngineState::Ready);
+                    core.set_state(EngineState::Ready);
                     m
                 }
                 _ => {
                     // Protocol desync: the stream can no longer be trusted.
-                    self.failed(g, Failure::Crash);
+                    Core::failed(core, g, Failure::Crash);
                     error_for_check("ENGINE_ERROR", &req, "The engine sent an invalid response.")
                 }
             },
             Err(RecvTimeoutError::Timeout) => {
                 // LanguageTool cannot be interrupted reliably: kill and restart (PLAN section 4).
-                self.failed(g, Failure::Timeout);
+                Core::failed(core, g, Failure::Timeout);
                 error_for_check("TIMEOUT", &req, "Analysis exceeded the time limit.")
             }
             Err(RecvTimeoutError::Disconnected) => {
-                self.failed(g, Failure::Crash);
+                Core::failed(core, g, Failure::Crash);
                 error_for_check("ENGINE_UNAVAILABLE", &req, "The engine process exited.")
             }
         }
     }
 
     /// Send `shutdown` and wait briefly; kill if the process does not exit.
-    pub fn shutdown(&self) {
+    fn shutdown(&self) {
         let mut g = self.inner.lock().unwrap();
+        g.closed = true;
         if let Some(mut run) = g.running.take() {
             let _ = run.stdin.write_all(b"{\"protocol\":1,\"type\":\"shutdown\"}\n");
             let _ = run.stdin.flush();
@@ -272,7 +302,10 @@ impl Supervisor {
         }
     }
 
-    fn failed(&self, g: &mut Inner, f: Failure) {
+    /// Kill the engine after a failure, update the budgets and, unless unavailable, respawn
+    /// it in the background (once the current check has returned and released the lock).
+    fn failed(this: &Arc<Self>, g: &mut Inner, f: Failure) {
+        let core = this;
         if let Some(mut run) = g.running.take() {
             let _ = run.child.kill();
             let _ = run.child.wait();
@@ -281,17 +314,27 @@ impl Supervisor {
             Failure::Crash => g.crashes += 1,
             Failure::Timeout => g.timeouts += 1,
         }
-        if g.crashes > self.cfg.max_restarts || g.timeouts >= self.cfg.max_consecutive_timeouts {
+        if g.crashes > core.cfg.max_restarts || g.timeouts >= core.cfg.max_consecutive_timeouts {
             g.unavailable = true;
-            self.set_state(EngineState::Unavailable);
+            core.set_state(EngineState::Unavailable);
         } else {
-            self.set_state(EngineState::Restarting);
+            core.set_state(EngineState::Restarting);
+            let core = Arc::clone(core);
+            thread::spawn(move || {
+                let mut g = core.inner.lock().unwrap();
+                if !g.closed && g.running.is_none() {
+                    let _ = core.ensure_running(&mut g);
+                }
+            });
         }
     }
 
     fn ensure_running(&self, g: &mut Inner) -> Result<(), String> {
         if g.running.is_some() {
             return Ok(());
+        }
+        if g.closed {
+            return Err("The engine has been shut down.".into());
         }
         // A fresh start is announced; a respawn after a failure stays `restarting`.
         if !g.unavailable && self.state() != EngineState::Restarting {

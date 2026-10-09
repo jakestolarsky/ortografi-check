@@ -59,4 +59,10 @@ CI (`desktop.yml`, job `contracts`) regenerates and fails on any diff, then runs
 - `restarting`: stopped after a crash or timeout, respawned for the next check.
 - `unavailable`: the engine can't run until a manual retry. This happens when it can't be spawned, after more than one consecutive crash or invalid line, or after 3 consecutive TIMEOUTs with no successful result in between.
 
+Failure contract:
+- **The failed check gets exactly one error.** When the running check fails, it gets one error with its `id`, `docVersion` and `settingsVersion`: `TIMEOUT`, `ENGINE_UNAVAILABLE` (crash) or `ENGINE_ERROR` (invalid engine line). Rust never retries it.
+- **Background respawn.** Rust then restarts the engine in the background straight away, with the crash backoff (`restarting`, then `ready`), unless the failure made it `unavailable`.
+- **Waiting checks are kept.** If a newer check was submitted while the failed one ran, it stays queued and is sent automatically once the engine is `ready`. Its answer arrives on `engine://message` as usual.
+- **UI retry rule.** The UI must **not** re-send that waiting check. It re-sends only when it decides to retry after receiving an error for its current version.
+
 Per-check limit: 3 s + 60 µs per UTF-16 unit, plus 3 s on the first check after each engine start. The startup (`ready`) limit is 10 s.
