@@ -4,16 +4,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reports pure insertions as a zero-length range at the exact point. LanguageTool often marks a
- * whole span for a missing comma ("Wiem że" → "Wiem, że"); the adapter returns start == end at
- * the insertion point with the inserted text (",") as the replacement.
+ * Reports punctuation edits as the minimal edit: the common prefix and suffix between the
+ * engine's span and each replacement are trimmed. A missing comma becomes a zero-length range
+ * with "," ("Wiem że" 0..7 → "Wiem, że" becomes 4..4 → ","). An extra comma becomes a range
+ * covering only the comma with "" ("chleb, i" 13..16 → " i" becomes 13..14 → ""), so the
+ * following space stays.
  *
- * <p>Applied only when every replacement inserts at the same point without changing the covered
- * text, and only at a word boundary: an insertion with a letter or digit on both sides
- * ("Poszłem" → "Poszedłem", "wogóle" → "w ogóle") is a word correction and keeps its range. The
- * point is after the longest common prefix, so it is deterministic. A point inside a surrogate
- * pair or before a combining mark is never produced; such issues stay unchanged.
- * Runs on the original text (after {@link NormalizingChecker}), so offsets are original UTF-16.
+ * <p>Applied only when the trimmed edit is punctuation only: what is removed and what is
+ * inserted consist of punctuation characters ({@code \p{P}}), and every replacement trims to the
+ * same range. Letter, digit and space edits ("Poszłem" → "Poszedłem", "wogóle" → "w ogóle",
+ * "kotaa" → "kota") keep the engine's whole-word range, as do mixed edits ("Mimo, że" → "Mimo
+ * iż"). Trimming takes the longest common prefix first, so the result is deterministic. A range
+ * edge inside a surrogate pair or before a combining mark is never produced; such issues stay
+ * unchanged. Runs on the original text (after {@link NormalizingChecker}), so offsets are
+ * original UTF-16 code units.
  */
 final class MinimalEditChecker implements Checker {
 
@@ -27,44 +31,55 @@ final class MinimalEditChecker implements Checker {
   public List<Issue> check(String text) throws Exception {
     List<Issue> in = inner.check(text);
     List<Issue> out = new ArrayList<>(in.size());
-    for (Issue i : in) out.add(narrow(text, i));
+    for (Issue i : in) out.add(minimal(text, i));
     return out;
   }
 
-  static Issue narrow(String text, Issue i) {
-    if (i.end() <= i.start() || i.replacements().isEmpty()) return i;
+  static Issue minimal(String text, Issue i) {
+    if (i.replacements().isEmpty() || i.end() < i.start()) return i;
     String covered = text.substring(i.start(), i.end());
-    int point = -1;
+    int start = -1;
+    int end = -1;
     List<String> inserted = new ArrayList<>();
     for (String r : i.replacements()) {
-      if (r.length() <= covered.length()) return i;
+      int max = Math.min(covered.length(), r.length());
       int p = 0;
-      while (p < covered.length() && covered.charAt(p) == r.charAt(p)) p++;
+      while (p < max && covered.charAt(p) == r.charAt(p)) p++;
       int q = 0;
-      while (q < covered.length() - p
+      while (q < max - p
           && covered.charAt(covered.length() - 1 - q) == r.charAt(r.length() - 1 - q)) q++;
-      if (p + q != covered.length()) return i; // changes the covered text: not a pure insertion
-      int at = i.start() + p;
-      if (point >= 0 && at != point) return i;
-      point = at;
-      inserted.add(r.substring(p, r.length() - q));
+      String removed = covered.substring(p, covered.length() - q);
+      String added = r.substring(p, r.length() - q);
+      if (removed.isEmpty() && added.isEmpty()) return i; // replacement equals the text
+      if (!isPunctuation(removed) || !isPunctuation(added)) return i;
+      int s = i.start() + p;
+      int e = i.end() - q;
+      if (start >= 0 && (s != start || e != end)) return i;
+      start = s;
+      end = e;
+      inserted.add(added);
     }
-    if (!isSafePoint(text, point)) return i;
-    return new Issue(point, point, i.ruleId(), i.category(), i.engineCategory(), i.issueType(),
+    if (start == i.start() && end == i.end()) return i;
+    if (!isSafeEdge(text, start) || !isSafeEdge(text, end)) return i;
+    return new Issue(start, end, i.ruleId(), i.category(), i.engineCategory(), i.issueType(),
         i.message(), List.copyOf(inserted));
   }
 
-  private static boolean isSafePoint(String text, int at) {
+  private static boolean isPunctuation(String s) {
+    return s.codePoints().allMatch(c -> switch (Character.getType(c)) {
+      case Character.CONNECTOR_PUNCTUATION, Character.DASH_PUNCTUATION, Character.START_PUNCTUATION,
+          Character.END_PUNCTUATION, Character.INITIAL_QUOTE_PUNCTUATION,
+          Character.FINAL_QUOTE_PUNCTUATION, Character.OTHER_PUNCTUATION -> true;
+      default -> false;
+    });
+  }
+
+  private static boolean isSafeEdge(String text, int at) {
     if (at <= 0 || at >= text.length()) return true;
     if (Character.isLowSurrogate(text.charAt(at)) && Character.isHighSurrogate(text.charAt(at - 1))) return false;
-    int after = text.codePointAt(at);
-    int type = Character.getType(after);
-    if (type == Character.NON_SPACING_MARK || type == Character.COMBINING_SPACING_MARK
-        || type == Character.ENCLOSING_MARK) {
-      return false;
-    }
-    // Inside a word ("Posz|łem", "w|ogóle") the fix is a word correction: keep the word range.
-    return !(Character.isLetterOrDigit(text.codePointBefore(at)) && Character.isLetterOrDigit(after));
+    int type = Character.getType(text.codePointAt(at));
+    return type != Character.NON_SPACING_MARK && type != Character.COMBINING_SPACING_MARK
+        && type != Character.ENCLOSING_MARK;
   }
 
   @Override
