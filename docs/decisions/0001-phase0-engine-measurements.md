@@ -264,6 +264,29 @@ is the lever.
   checks gave a peak of 221 MiB (−28 MiB), with the same latency and the same 231 issues. Not
   worth the risk to cross-paragraph rules now that the flags give 100 MiB of headroom.
 
+## Held-out milestone run (phase 1, 2026-10-09 21:59 CEST)
+
+One run on the held-out split (`tests/corpus/data/heldout/phase1-heldout.jsonl`, 94 examples,
+36 clean, scoring 1.2) with the engine at PR #10 head `6ecaecb`. **No rule or code was changed
+because of these results.** All tuning used dev only; held-out had not been run before.
+
+| Category | Held-out P / R / F1 (overlap) | Dev P / R / F1 (overlap) | Held-out F1 (exact) | Dev F1 (exact) |
+|---|---|---|---|---|
+| grammar | 100% / 40.0% / 57.1% (2 TP, 0 FP, 3 FN) | 85.7% / 46.2% / 60.0% | 50.0% | 40.0% |
+| punctuation | 100% / 81.8% / 90.0% | 100% / 82.7% / 90.5% | 66.7% | 44.7% |
+| spelling | 100% / 90.6% / 95.1% | 98.2% / 76.7% / 86.2% | 95.1% | 84.0% |
+| **overall** | **100% / 83.1% / 90.7%** (49 TP, 0 FP, 10 FN) | 98.1% / 76.1% / 85.7% | **81.5%** (P 89.8%, R 74.6%) | 65.3% |
+
+- Clean-sentence false positives: **0/36 (0.0%)** in both modes (dev: 0/82).
+- Release-critical failures: **none** under overlap. Under exact: p1-0161 and p1-0165. Both are
+  extra commas that the engine reports on a wider span (`PODMIOT_ORZECZENIE` 9..15 → " lubi";
+  `COFANIE_PRZECINKA` 0..8 → "Mimo że"). This is the same class as dev's p0-0001/p1-0160
+  (deletion spans are not narrowed).
+- Strict category (overlap): P 94.0% / R 79.7% / F1 86.2% (dev 81.3%). `excluded_categories`:
+  none predicted on held-out.
+- Held-out is small (59 scored issues; grammar has 5). Held-out is not lower than dev here, but
+  that does not prove generalisation: a single example moves grammar F1 by ~10 points.
+
 ## Open items
 
 - **Memory at 50k: resolved on Linux (phase 1).** See "Memory (phase 1)" below: peak RSS is now
