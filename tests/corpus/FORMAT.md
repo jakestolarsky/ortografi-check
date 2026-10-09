@@ -154,6 +154,31 @@ One JSON object per line, one line per corpus example:
 * `rule_id`, `message`, and extra fields are allowed and ignored by scoring.
 * A corpus example with no result line is reported as `missing` (counted as misses).
 
+## Protocol v1 input (engine stdout as-is)
+
+The scorer and `validate.mjs --engine` also accept engine protocol v1 messages exactly as
+defined in `contracts/v1/protocol.schema.json` and `contracts/README.md`, so an engine run
+can be piped straight from the adapter's stdout. Both formats may be mixed in one file;
+a line is treated as v1 when it has `protocol` and no `schema_version`.
+
+* **Mapping to examples.** The check request `id` is `corpus-<example id>` (the convention
+  of `contracts/tools/build-examples.mjs`, e.g. `corpus-p0-0003`). The scorer strips the
+  `corpus-` prefix; an id without it is used as the example id unchanged. `docVersion` and
+  `settingsVersion` are not used for mapping (the stale filter is the app's job, not the
+  scorer's). Two answers for the same example are an error.
+* **`result`** becomes a scorer line with `status: complete`; `issues[].start/end`
+  (UTF-16, end exclusive, `start == end` = insertion), `category`, `ruleId` and
+  `replacements` carry over unchanged. Unknown fields, `protocol` other than `1`, `status`
+  other than `complete`, and categories outside the schema enum are rejected.
+* **`error` with an `id`** becomes `status: error` for that example (counted as misses,
+  reported under incomplete/error results). An `error` with `id: null`, and `ready`,
+  `check` and `shutdown` lines, are skipped.
+* **Deletion convention** (contracts README, "Edit conventions"): an empty replacement
+  `""` must delete exactly one comma (`end = start + 1`, text there is `,`). Anything else
+  is rejected for v1 lines. Legacy lines are not checked for this.
+
+Example fixture: `tests/corpus/tools/fixtures/v1-results.jsonl`.
+
 ## Scoring
 
 1. **Range match.** A predicted issue *can* match an expected one when their ranges
@@ -225,6 +250,9 @@ The JSONL file stays the single source of truth; markup is only an input aid.
   no required issue; style/other predictions on annotated optional issues are not
   clean-sentence false alarms; `expected_non_error` in the report. `score.mjs` and
   `validate.mjs` take several files and globs after `--corpus`.
+* **Result input: protocol v1** (phase 3): `score.mjs` and `validate.mjs --engine` accept
+  `contracts/v1` messages (`result`, `error`) next to corpus result lines; see
+  "Protocol v1 input". Scoring rules unchanged (still 1.2).
 
 * **Corpus format 1.0**: unchanged in the first phase-1 commit (no schema change). The `split` field
   existed from the start; phase 1 only assigns `heldout`.

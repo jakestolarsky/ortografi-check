@@ -1,0 +1,10 @@
+{"protocol":1,"type":"ready","engineVersion":"6.8","language":"pl-PL"}
+{"protocol":1,"type":"check","id":"corpus-p0-0003","docVersion":1,"settingsVersion":1,"text":"Wiem że to nie będzie łatwe."}
+{"protocol":1,"type":"result","id":"corpus-p0-0003","docVersion":1,"settingsVersion":1,"engineVersion":"6.8","status":"complete","analysisMs":10,"issues":[{"start":4,"end":4,"ruleId":"BRAK_PRZECINKA_ZE","category":"punctuation","engineCategory":"PUNCTUATION","issueType":"typographical","message":"Brak przecinka przed „że”.","replacements":[","]}]}
+{"protocol":1,"type":"result","id":"corpus-p0-0059","docVersion":2,"settingsVersion":1,"engineVersion":"6.8","status":"complete","analysisMs":10,"issues":[{"start":29,"end":37,"ruleId":"MORFOLOGIK_RULE_PL_PL","category":"spelling","engineCategory":"TYPOS","issueType":"misspelling","message":"Prawdopodobny błąd pisowni.","replacements":["dziękuję"]}]}
+{"protocol":1,"type":"result","id":"corpus-p0-0061","docVersion":4,"settingsVersion":1,"engineVersion":"6.8","status":"complete","analysisMs":10,"issues":[]}
+{"protocol":1,"type":"result","id":"corpus-p0-0063","docVersion":3,"settingsVersion":1,"engineVersion":"6.8","status":"complete","analysisMs":10,"issues":[{"start":9,"end":14,"ruleId":"MORFOLOGIK_RULE_PL_PL","category":"spelling","engineCategory":"TYPOS","issueType":"misspelling","message":"Prawdopodobny błąd pisowni.","replacements":["żaba"]}]}
+{"protocol":1,"type":"result","id":"corpus-p0-0043","docVersion":5,"settingsVersion":1,"engineVersion":"6.8","status":"complete","issues":[{"start":10,"end":11,"ruleId":"PL_EXTRA_COMMA","category":"punctuation","engineCategory":"PUNCTUATION","issueType":"typographical","message":"Zbędny przecinek.","replacements":[""]}]}
+{"protocol":1,"type":"error","id":"corpus-p0-0001","docVersion":6,"settingsVersion":1,"code":"ENGINE_ERROR","detail":"The engine failed to analyse the text."}
+{"protocol":1,"type":"error","id":null,"code":"MALFORMED_REQUEST","detail":"Request is not valid JSON."}
+{"protocol":1,"type":"shutdown"}

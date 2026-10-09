@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Score engine results against the corpus. See ../FORMAT.md ("Scoring").
 // Usage: node score.mjs --corpus <file|glob>... --results <results.jsonl>
+//   (--results lines: corpus result lines and/or v1 protocol messages, ids `corpus-<id>`)
 //   (--corpus accepts several files and quoted globs such as 'tests/corpus/data/**/*.jsonl')
 //          [--split all|dev|heldout] [--json] [--match overlap|exact] [--strict-category]
 //          [--score-all-categories] [--fail-on-release-critical]
@@ -8,6 +9,7 @@
 import { pathToFileURL } from 'node:url';
 import { readJsonl, validateCorpus, validateEngineResult, expandPaths } from './corpus-lib.mjs';
 import { scoreCorpus } from './scoring.mjs';
+import { normalizeResultEntries, validateV1AgainstExample } from './protocol-v1.mjs';
 
 function parseArgs(argv) {
   const a = { corpus: [], results: null, json: false, match: 'overlap', strictCategory: false, scoreAllCategories: false, split: 'all', failOnRc: false };
@@ -76,12 +78,15 @@ export function main(argv) {
   const byId = new Map(selected.map((e) => [e.id, e]));
   const results = new Map();
   const errs = [];
-  for (const { line, value } of readJsonl(args.results)) {
+  // Lines may be corpus result lines or v1 protocol messages (FORMAT.md "Protocol v1 input").
+  for (const { line, value, errors: lineErrs, v1 } of normalizeResultEntries(readJsonl(args.results))) {
+    if (lineErrs.length) { lineErrs.forEach((e) => errs.push(`${args.results}:${line}: ${e}`)); continue; }
     if (value && !byId.has(value.id) && allById.has(value.id)) continue; // other split
     const ex = value && byId.get(value.id);
     if (!ex) { errs.push(`${args.results}:${line}: unknown id ${JSON.stringify(value && value.id)}`); continue; }
     if (results.has(value.id)) { errs.push(`${args.results}:${line}: duplicate result for ${value.id}`); continue; }
     validateEngineResult(value, ex).forEach((e) => errs.push(`${args.results}:${line}: ${e}`));
+    if (v1) validateV1AgainstExample(value, ex).forEach((e) => errs.push(`${args.results}:${line}: ${e}`));
     results.set(value.id, value);
   }
   if (errs.length) throw new Error(`engine results invalid:\n${errs.join('\n')}`);
