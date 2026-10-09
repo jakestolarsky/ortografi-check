@@ -22,6 +22,11 @@ describe('contracts v1', () => {
     expect(ok).toBe(true);
   });
 
+  it.each(examples)('%s is compact single-line JSON', (f) => {
+    const raw = readFileSync(join(exDir, f), 'utf8');
+    expect(raw).toBe(JSON.stringify(JSON.parse(raw)) + '\n');
+  });
+
   it('rejects unknown fields and wrong protocol', () => {
     expect(validate({ protocol: 1, type: 'shutdown', extra: 1 })).toBe(false);
     expect(validate({ protocol: 2, type: 'shutdown' })).toBe(false);

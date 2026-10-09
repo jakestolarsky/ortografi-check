@@ -2,7 +2,7 @@
 // Texts and fixes are copied from the parsed corpus strings, never retyped, so NFD
 // sequences, emoji and ZWJ survive byte-for-byte. Result messages/ruleIds are
 // representative shape fixtures, not golden engine output.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -38,4 +38,11 @@ for (const [id, meta] of Object.entries(cases)) {
   const dir = join(root, 'contracts/v1/examples');
   writeFileSync(join(dir, `corpus-${id}-check.json`), JSON.stringify(check) + '\n');
   writeFileSync(join(dir, `corpus-${id}-result.json`), JSON.stringify(result) + '\n');
+}
+
+// Normalise every hand-written example to compact single-line JSON (+ newline).
+const exDir = join(root, 'contracts/v1/examples');
+for (const f of readdirSync(exDir).filter((f) => f.endsWith('.json'))) {
+  const p = join(exDir, f);
+  writeFileSync(p, JSON.stringify(JSON.parse(readFileSync(p, 'utf8'))) + '\n');
 }
