@@ -194,6 +194,18 @@ class LanguageToolCheckerTest {
   }
 
   @Test
+  void apostropheIemFormOfSilentENamesIsNotFlaggedButWrongFormsAre() throws Exception {
+    for (String t : new String[] {"Spotkałem się z Mike'iem na kawie.", "Rozmawiałem z Clarke’iem wczoraj."}) {
+      assertEquals(List.of(), checker.check(t), t);
+    }
+    String wrong = "Spotkałem się z Mike'm na kawie.";
+    Issue i = onlyIssueCovering(checker.check(wrong), wrong, "Mike'm");
+    assertEquals("IMIONA_Z_APOSTROFAMI", i.ruleId());
+    String other = "Porozmawiajmy o John'ie Lennonie.";
+    assertEquals("IMIONA_Z_APOSTROFAMI", onlyIssueCovering(checker.check(other), other, "John'ie").ruleId());
+  }
+
+  @Test
   void emptyTextHasNoIssues() throws Exception {
     assertEquals(List.of(), checker.check(""));
   }
