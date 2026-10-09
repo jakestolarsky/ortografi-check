@@ -38,4 +38,13 @@ class FalsePositiveFilterTest {
     }
     assertFalse(suppressed("MORFOLOGIK_RULE_PL_PL", "Mike'iem"));
   }
+
+  @org.junit.jupiter.api.Test
+  void sentenceInitialAleAndLeczAreNotErrorsButBowiemAndZasAre() {
+    org.junit.jupiter.api.Assertions.assertTrue(FalsePositiveFilter.suppresses("BOWIEM_ZAS", "Ale"));
+    org.junit.jupiter.api.Assertions.assertTrue(FalsePositiveFilter.suppresses("BOWIEM_ZAS", "Lecz"));
+    org.junit.jupiter.api.Assertions.assertFalse(FalsePositiveFilter.suppresses("BOWIEM_ZAS", "Bowiem"));
+    org.junit.jupiter.api.Assertions.assertFalse(FalsePositiveFilter.suppresses("BOWIEM_ZAS", "Zaś"));
+    org.junit.jupiter.api.Assertions.assertFalse(FalsePositiveFilter.suppresses("BOWIEM_ZAS_PRZECINEK", "zaś"));
+  }
 }

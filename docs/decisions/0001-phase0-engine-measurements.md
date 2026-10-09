@@ -379,3 +379,49 @@ python3 benchmarks/bench.py --50k benchmarks/results/phase0-linux-x64.json 15 30
 (cd engine-java && scripts/jlink-runtime.sh --check && scripts/jlink-runtime.sh target/runtime \
   && python3 scripts/smoke_test.py --java target/runtime/bin/java --compare-java "$JAVA_HOME/bin/java")
 ```
+
+## Spelling false alarms on clean prose (engine/spelling-fp)
+
+Clean-prose set: Corpus PR #26, branch `corpus/clean-prose` @ 51b0b30 (4,237 correct sentences,
+Polish Wikipedia + modernised Wolne Lektury), `tests/corpus/tools/fp-rate.mjs`. Dev: `score.mjs
+--split dev` on main f632b97 (includes corpus PR #20). Heldout and the sealed sets were not used.
+
+**What the 782 MORFOLOGIK_RULE_PL_PL false alarms on main are** (shape heuristics, approximate):
+capitalised word mid-sentence 373 (place/person names, inflected names, Latin genera), lowercase
+words 183 (Latin/foreign words, archaic forms, real dictionary gaps such as `kryptomonady`),
+Latin binomials 71, words inside quotes 44, all-caps/abbreviations 32 (incl. `°C`), hyphenated
+compounds 27 (`XIV-wieczny`, `Neuilly-sur-Seine`, suffix fragments `-a`), lowercase foreign-looking 25,
+capitalised at sentence start 25, digits/mixed script 5. Wikipedia gives 641 of them, Wolne Lektury 134.
+
+**Filters** (`SpellingNoiseFilter`, shape and context only, no word list; a word is always kept when
+the speller suggests a word at edit distance 1, transpositions included, so typos in names such as
+`Gdańksu` → `Gdańsku` still show):
+
+| filter | suppressed on clean prose |
+|---|---:|
+| name: capitalised mid-sentence, no capitalised suggestion at distance 1 | 132 |
+| foreign phrase / Latin binomial: two adjacent unknown words | 69 |
+| foreign letters (é, ü, å, ø…; q/v/x still count as Polish) | 36 |
+| all caps, 2+ letters | 23 |
+| hyphenated name or Roman-numeral compound (`XIV-wieczny`) | 13 |
+| digits, `°`, or Latin mixed with Cyrillic/Greek | 14 |
+
+`BOWIEM_ZAS` (an LT style rule, mapped to grammar): sentence-initial `Ale`/`Lecz` (52 of 54 alerts)
+is standard Polish and is now suppressed in `FalsePositiveFilter`; `Bowiem`/`Zaś` still report.
+
+| | main | engine/spelling-fp |
+|---|---:|---:|
+| clean-prose false alarms | 1,192 (281.3 / 1,000) | 855 (201.8 / 1,000) |
+| MORFOLOGIK_RULE_PL_PL | 782 | 497 |
+| BOWIEM_ZAS | 54 | 2 |
+| dev spelling P / R / top | 98.2% / 76.7% / 83.9% | unchanged |
+| dev grammar / punctuation recall | 35.6% / 82.5% | unchanged |
+| dev correct sentences flagged | 0/101 | 0/101 |
+
+**ZDANIA_ZLOZONE** (82 clean-prose alerts at this snapshot) is kept: disabling it removes 82 alarms
+but costs 10 dev punctuation hits (punctuation recall 82.5% → 64.9%, overall 63.5% → 58.6%).
+
+Left: 208 capitalised words with a close capitalised suggestion (mostly inflected Polish place names
+missing from the dictionary), 171 lowercase unknown words, 37 words in quotes. No shape signal tells
+these from real typos; they need dictionary additions (reported upstream) or a lower-severity
+"unknown name" presentation.

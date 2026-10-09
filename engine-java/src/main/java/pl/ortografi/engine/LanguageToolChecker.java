@@ -61,8 +61,16 @@ public final class LanguageToolChecker implements Checker {
   public List<Issue> check(String text) throws IOException {
     List<RuleMatch> matches = lt.check(text);
     List<Issue> issues = new ArrayList<>(matches.size());
+    List<int[]> spelling = matches.stream().filter(m -> m.getRule().getId().equals(SpellingNoiseFilter.RULE))
+        .map(m -> new int[] {m.getFromPos(), m.getToPos()}).toList();
     for (RuleMatch m : matches) {
       String covered = text.substring(m.getFromPos(), m.getToPos());
+      if (m.getRule().getId().equals(SpellingNoiseFilter.RULE)) {
+        List<int[]> others = spelling.stream().filter(r -> r[0] != m.getFromPos()).toList();
+        if (SpellingNoiseFilter.reason(text, m.getFromPos(), m.getToPos(), m.getSuggestedReplacements(), others) != null) {
+          continue;
+        }
+      }
       if (FalsePositiveFilter.suppresses(m.getRule().getId(), covered)
           || (m.getRule().getId().equals("MORFOLOGIK_RULE_PL_PL")
               && PossessiveFromName.isLowercasePossessiveFromName(covered, names))) {
