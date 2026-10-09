@@ -1,0 +1,88 @@
+name: engine
+
+on:
+  push:
+    branches: ['engine/**']
+  pull_request:
+    paths:
+      - 'engine-java/**'
+      - 'benchmarks/sample-temporary/**'
+      - '.github/workflows/engine.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  adapter:
+    name: adapter (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: engine-java
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Temurin 21.0.12.1+1 (Adoptium semver 21.0.12+101.0.LTS), same build as the local
+          # measurements. setup-java needs the full semver string.
+          java-version: '21.0.12+101.0.LTS'
+          cache: maven
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Java version (must be Temurin 21.0.12.1+1)
+        run: |
+          v=$(java -version 2>&1)
+          echo "$v"
+          case "$v" in
+            *'Temurin-21.0.12.1+1 '*) ;;
+            *) echo "::error::expected Temurin 21.0.12.1+1"; exit 1 ;;
+          esac
+
+      - name: Build and test (mvn verify)
+        run: mvn -B -ntp verify
+
+      - name: jdeps check of the pinned runtime module list
+        run: scripts/jlink-runtime.sh --check
+
+      - name: Build jlink runtime
+        run: scripts/jlink-runtime.sh target/runtime
+
+      - name: Smoke test on the full JDK
+        run: python scripts/smoke_test.py --java "$JAVA_HOME/bin/java"
+
+      - name: Smoke test on the jlink runtime (must match the full JDK)
+        run: python scripts/smoke_test.py --java target/runtime/bin/java --compare-java "$JAVA_HOME/bin/java"
+
+      - name: Size report
+        run: |
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import os, pathlib, shutil, tempfile
+          def size(p):
+              return sum(f.stat().st_size for f in pathlib.Path(p).rglob('*') if f.is_file())
+          def gz(p):
+              with tempfile.TemporaryDirectory() as d:
+                  return os.path.getsize(shutil.make_archive(os.path.join(d, 'a'), 'gztar', p))
+          mib = lambda b: f"{b / 1048576:.1f} MiB"
+          print(f"### Sizes on ${{ matrix.os }}\n\n| Payload | Installed | tar.gz |\n|---|---|---|")
+          print(f"| jlink runtime | {mib(size('target/runtime'))} | {mib(gz('target/runtime'))} |")
+          print(f"| adapter JARs (target/lib) | {mib(size('target/lib'))} | {mib(gz('target/lib'))} |")
+          PY
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-${{ matrix.os }}
+          path: engine-java/target/surefire-reports/

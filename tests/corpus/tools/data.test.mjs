@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { readJsonl, validateCorpus, CATEGORIES } from './corpus-lib.mjs';
+import { readJsonl, validateCorpus, CATEGORIES, checkSplitLocation } from './corpus-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = join(root, 'data');
-const files = readdirSync(dataDir).filter((f) => f.endsWith('.jsonl'));
+const files = readdirSync(dataDir, { recursive: true }).filter((f) => f.endsWith('.jsonl')).sort();
 const all = files.flatMap((f) => readJsonl(join(dataDir, f)).map((e) => e.value));
 
 test('every corpus file validates without errors', () => {
@@ -16,6 +16,8 @@ test('every corpus file validates without errors', () => {
   for (const f of files) {
     const r = validateCorpus(readJsonl(join(dataDir, f)), f);
     assert.deepEqual(r.errors, [], r.errors.join('\n'));
+    const loc = checkSplitLocation(f, readJsonl(join(dataDir, f)));
+    assert.deepEqual(loc, [], loc.join('\n'));
   }
   assert.equal(new Set(all.map((e) => e.id)).size, all.length, 'ids unique across files');
 });
@@ -46,4 +48,16 @@ test('schema files agree with the validator enums', () => {
   assert.deepEqual(s.$defs.issue.properties.category.enum, CATEGORIES);
   const keys = new Set(Object.keys(s.properties));
   for (const e of all) for (const k of Object.keys(e)) assert.ok(keys.has(k), `field ${k} missing from schema`);
+});
+
+test('no duplicate texts; clean share and held-out share stay near targets', () => {
+  const texts = all.map((e) => e.text);
+  const dups = texts.filter((t, i) => texts.indexOf(t) !== i);
+  assert.deepEqual(dups, [], 'duplicate texts');
+  const clean = all.filter((e) => e.issues.length === 0).length / all.length;
+  assert.ok(clean >= 0.3 && clean <= 0.45, `clean share ${clean}`);
+  const held = all.filter((e) => e.split === 'heldout').length / all.length;
+  assert.ok(held >= 0.25 && held <= 0.35, `heldout share ${held}`);
+  assert.ok(all.some((e) => e.release_critical && e.split === 'heldout'), 'release-critical cases in heldout');
+  assert.ok(all.filter((e) => e.text !== e.text.normalize('NFC')).length >= 10, 'NFD examples');
 });

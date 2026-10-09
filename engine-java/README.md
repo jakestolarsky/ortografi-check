@@ -12,7 +12,12 @@ Requires Temurin 21 (measured with 21.0.12.1+1) and Maven 3.9.
 mvn test            # 52 JUnit 5 tests; LanguageToolCheckerTest runs the real pinned engine
 mvn package         # target/ortografi-engine-0.0.1-phase0.jar + target/lib/*.jar (engine JARs kept separate, LGPL)
 java -jar target/ortografi-engine-0.0.1-phase0.jar
+scripts/jlink-runtime.sh --check      # pinned runtime-modules.txt still covers jdeps output
+scripts/jlink-runtime.sh target/runtime
+python3 scripts/smoke_test.py --java target/runtime/bin/java --compare-java "$JAVA_HOME/bin/java"
 ```
+
+CI: `.github/workflows/engine.yml` runs all of the above on ubuntu, macOS and Windows.
 
 ## Protocol v1 (JSON lines, UTF-8)
 

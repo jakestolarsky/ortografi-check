@@ -1,5 +1,12 @@
 // Scoring logic for engine results against the corpus (format v1). See ../FORMAT.md.
-import { applyEdit } from './corpus-lib.mjs';
+import { applyEdit, ERROR_CATEGORIES } from './corpus-lib.mjs';
+
+export const SCORING_VERSION = '1.2';
+
+/** Predictions in a non-error category (e.g. style, other) are reported apart, not scored. */
+export function isExcludedCategory(category, opts = {}) {
+  return !opts.scoreAllCategories && typeof category === 'string' && !ERROR_CATEGORIES.includes(category);
+}
 
 /** Ranges can match: overlap, or touch when either side is zero-length. */
 export function rangesMatch(e, p, mode = 'overlap') {
@@ -80,12 +87,15 @@ export function scoreCorpus(corpus, results, opts = {}) {
   const missing = [];
   const incomplete = [];
   const releaseCriticalFailures = [];
-  const clean = { examples: 0, with_false_positive: 0, ids: [] };
+  const clean = { examples: 0, with_false_positive: 0, with_error_category_fp: 0, with_only_excluded_category: 0, ids: [] };
+  const excluded = {};
+  const expectedNonError = {};
   const perExample = [];
 
   for (const ex of corpus) {
     const res = results.get(ex.id);
-    const requiredIdx = new Set(ex.issues.map((iss, i) => (iss.required ? i : -1)).filter((i) => i >= 0));
+    // Non-error expected issues (style) are never required, whatever the file says.
+    const requiredIdx = new Set(ex.issues.map((iss, i) => (iss.required && ERROR_CATEGORIES.includes(iss.category) ? i : -1)).filter((i) => i >= 0));
     let predicted = [];
     let status = 'complete';
     if (!res) {
@@ -97,6 +107,23 @@ export function scoreCorpus(corpus, results, opts = {}) {
     } else {
       predicted = res.issues;
     }
+    // Clean = no required issue; optional/style annotations do not make a sentence wrong.
+    const isClean = requiredIdx.size === 0;
+    const excludedHere = predicted.filter((p) => isExcludedCategory(p.category, opts));
+    for (const e of ex.issues) {
+      if (ERROR_CATEGORIES.includes(e.category)) continue;
+      expectedNonError[e.category] ??= { expected: 0, flagged: 0 };
+      expectedNonError[e.category].expected += 1;
+      if (predicted.some((p) => rangesMatch(e, p, opts.match ?? 'overlap'))) expectedNonError[e.category].flagged += 1;
+    }
+    // A style/other prediction on an annotated optional issue is expected, not a false alarm.
+    const excludedUnexpected = excludedHere.filter((p) => !ex.issues.some((e) => !requiredIdx.has(ex.issues.indexOf(e)) && rangesMatch(e, p, opts.match ?? 'overlap')));
+    for (const p of excludedHere) {
+      excluded[p.category] ??= { predictions: 0, on_clean_examples: 0 };
+      excluded[p.category].predictions += 1;
+      if (isClean && excludedUnexpected.includes(p)) excluded[p.category].on_clean_examples += 1;
+    }
+    predicted = predicted.filter((p) => !isExcludedCategory(p.category, opts));
     const { matches, unmatchedExpected, unmatchedPredicted } = matchExample(ex.text, ex.issues, predicted, opts);
     let exFp = 0;
     let exFn = 0;
@@ -125,25 +152,31 @@ export function scoreCorpus(corpus, results, opts = {}) {
       const c = typeof predicted[pi].category === 'string' ? predicted[pi].category : 'unknown';
       for (const b of [bucket(c), overall]) b.fp += 1;
     }
-    if (requiredIdx.size === 0 && ex.issues.length === 0) {
+    if (isClean) {
       clean.examples += 1;
-      if (exFp > 0) {
+      if (exFp > 0 || excludedUnexpected.length > 0) {
         clean.with_false_positive += 1;
         clean.ids.push(ex.id);
+        if (exFp > 0) clean.with_error_category_fp += 1;
+        else clean.with_only_excluded_category += 1;
       }
     }
     const passed = status === 'complete' && exFp === 0 && exFn === 0 && exTopMiss === 0;
     if (ex.release_critical && !passed) releaseCriticalFailures.push({ id: ex.id, status, fp: exFp, fn: exFn, top_suggestion_misses: exTopMiss });
-    perExample.push({ id: ex.id, status, fp: exFp, fn: exFn, top_suggestion_misses: exTopMiss, passed });
+    perExample.push({ id: ex.id, split: ex.split, status, fp: exFp, fn: exFn, top_suggestion_misses: exTopMiss, excluded_predictions: excludedHere.length, passed });
   }
 
   const categories = {};
   for (const [c, b] of [...buckets.entries()].sort()) categories[c] = finish(b);
   return {
-    options: { match: opts.match ?? 'overlap', strict_category: !!opts.strictCategory },
+    scoring_version: SCORING_VERSION,
+    options: { match: opts.match ?? 'overlap', strict_category: !!opts.strictCategory, score_all_categories: !!opts.scoreAllCategories, split: opts.split ?? 'all' },
+    splits: corpus.reduce((a, e) => ({ ...a, [e.split]: (a[e.split] ?? 0) + 1 }), {}),
     examples: corpus.length,
     overall: finish(overall),
     categories,
+    excluded_categories: excluded,
+    expected_non_error: expectedNonError,
     clean_set: { ...clean, false_positive_rate: ratio(clean.with_false_positive, clean.examples) },
     missing,
     incomplete,
